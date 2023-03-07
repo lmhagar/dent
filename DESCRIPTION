@@ -1,0 +1,20 @@
+Package: dent
+Title: Design of Equivalence and Noninferiority Tests
+Version: 0.0.0.9000
+Author: Luke Hagar [aut, cre], Nathaniel T. Stevens [aut]
+Maintainer: Luke Hagar <lmhagar@uwaterloo.ca>
+Description: Fast power and sample size calculations for equivalence and noninferiority tests faciliated via two and one one-sided t-tests, respectively. Accomodates balanced and imbalanced sample size determination for two groups of data with equal and unequal variances. Test with paired data and single samples are also supported. Parallel, crossover, and sequential designs are accommodated, along with functionality to analyze data from these designs.
+Imports: 
+    stats,
+    qrng,
+    ggplot2
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+License: GPL (>= 3)
+Config/testthat/edition: 3
