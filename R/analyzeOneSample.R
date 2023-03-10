@@ -81,16 +81,21 @@ AnalyzeOneSample <- function(x = NULL, deltaL = -Inf,
 
 
 #' @title Printing equivalence and noninferiority test results
-#' @name print.en.test
+#' @name en.test-methods
 #'
 #' @description Helper function to print en.test objects
 #'
-#' @param obj an en.test object
-#' @noRd
-print.en.test <- function(obj){
-  cat(obj$method, "\n",
-      obj$test, "\n",
-      "Significance Level: ", obj$sig.level, "\n", "\n", "Results", "\n", sep = "")
-  print(as.matrix(obj$table),quote=F)
-  cat("\n", "Summary", "\n", obj$summary, sep = "")
+#' @param x an en.test object
+#' @param ... further arguments to be passed through (see `print()` function)
+#'
+#' @rdname en.test-methods
+#' @method print en.test
+#' @keywords internal
+#' @export
+print.en.test <- function(x, ...){
+  cat(x$method, "\n",
+      x$test, "\n",
+      "Significance Level: ", x$sig.level, "\n", "\n", "Results", "\n", sep = "")
+  print(as.matrix(x$table),quote=F)
+  cat("\n", "Summary", "\n", x$summary, sep = "")
 }

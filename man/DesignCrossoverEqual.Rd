@@ -31,7 +31,7 @@ DesignCrossoverEqual(
 
 \item{targetPower}{the desired statistical power of the equivalence or noninferiority test, must be a single number between 0 and 1 (exclusive). Exactly one of the following pairs must be specified: \code{targetPower} and \code{q} or \code{n1} and \code{n2}. Specify both \code{targetPower} and \code{q} to find sample sizes \code{n1} and \code{n2} that yield desired power such that \eqn{n_{2} \approx q n_{1}}.}
 
-\item{q}{the multiplicative constant for imbalanced two-group sample size determination (\eqn{n_{2} = q n_{1}}).}
+\item{q}{the multiplicative constant for imbalanced two-group sample size determination (\eqn{n_{2} = q n_{1}}). The default value is 1.}
 
 \item{n1}{the sample size for group 1. This is the number of subjects assigned to the first sequence and must be a single integer such that \eqn{n_{1} \ge 2}. Exactly one of the following pairs must be specified: \code{targetPower} and \code{q} or \code{n1} and \code{n2}. Specify both \code{n1} and \code{n2} to estimate statistical power for these sample sizes.}
 
