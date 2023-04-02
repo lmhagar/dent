@@ -7,5 +7,5 @@ You can install this version from Github:
 
 ```
 install.packages('devtools')
-devtools::install_github("lmhagar/dent", ref="master", force = TRUE)
+devtools::install_github("lmhagar/dent", ref="master")
 ```
