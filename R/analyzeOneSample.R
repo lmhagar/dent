@@ -18,24 +18,24 @@ AnalyzeOneSample <- function(x = NULL, deltaL = -Inf,
 
   ## error checking
   if(!is.numeric(x) | length(x) < 2) {
-    return("Error: Please specify a valid input for data x.")}
+    stop("Please specify a valid input for data x.")}
   else if (sum(is.na(x)) > 0){
-    return("Error: Please specify a valid input for data x.")}
+    stop("Please specify a valid input for data x.")}
   else if (stats::var(x) == 0){
-    return("Error: Please specify a valid input for data x.")}
+    stop("Please specify a valid input for data x.")}
   if(!is.numeric(deltaL) | length(deltaL) != 1){
-    return("Error: Please specify a valid number for deltaL.")}
+    stop("Please specify a valid number for deltaL.")}
   if(!is.numeric(deltaU) | length(deltaU) != 1){
-    return("Error: Please specify a valid number for deltaU.")}
+    stop("Please specify a valid number for deltaU.")}
   if(deltaL == -Inf & deltaU == Inf){
-    return("Error: Please specify valid interval endpoints deltaL and deltaU.")}
+    stop("Please specify valid interval endpoints deltaL and deltaU.")}
   if (deltaL >= deltaU){
-    return("Error: Please specify valid interval endpoints deltaL and deltaU.")}
+    stop("Please specify valid interval endpoints deltaL and deltaU.")}
   if(!is.numeric(alpha) | length(alpha) != 1) {
-    return("Error: Please specify a valid number for alpha.")}
+    stop("Please specify a valid number for alpha.")}
   if (is.numeric(alpha)){
     if (alpha <= 0 | alpha >= 1){
-      return("Error: Please specify a valid number for alpha.")}
+      stop("Please specify a valid number for alpha.")}
   }
 
   if (is.finite(deltaL) & is.finite(deltaU)){

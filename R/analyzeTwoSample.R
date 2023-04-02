@@ -21,35 +21,35 @@ AnalyzeTwoSample <- function(x = NULL, y = NULL, type = "welch", deltaL = -Inf,
 
   ## error checking
   if(!is.numeric(x) | length(x) < 2) {
-    return("Error: Please specify a valid input for data x.")}
+    stop("Please specify a valid input for data x.")}
   else if (sum(is.na(x)) > 0){
-    return("Error: Please specify a valid input for data x.")}
+    stop("Please specify a valid input for data x.")}
   else if (stats::var(x) == 0){
-    return("Error: Please specify a valid input for data x.")}
+    stop("Please specify a valid input for data x.")}
   if(!is.numeric(y) | length(y) < 2) {
-    return("Error: Please specify a valid input for data y.")}
+    stop("Please specify a valid input for data y.")}
   else if (sum(is.na(y)) > 0){
-    return("Error: Please specify a valid input for data y.")}
+    stop("Please specify a valid input for data y.")}
   else if (stats::var(y) == 0){
-    return("Error: Please specify a valid input for data y.")}
-  if (length(x) != length(y)){
-    return("Error: Please ensure x and y have the same number of observations.")}
+    stop("Please specify a valid input for data y.")}
+  if(length(type) != 1 | !(type %in% c("welch", "student", "paired"))){
+    stop("Please specify a valid type for the t-test(s).")}
+  if (length(x) != length(y) & type == "paired"){
+    stop("Please ensure x and y have the same number of observations.")}
   if(!is.numeric(deltaL) | length(deltaL) != 1){
-    return("Error: Please specify a valid number for deltaL.")}
+    stop("Please specify a valid number for deltaL.")}
   if(!is.numeric(deltaU) | length(deltaU) != 1){
-    return("Error: Please specify a valid number for deltaU.")}
+    stop("Please specify a valid number for deltaU.")}
   if(deltaL == -Inf & deltaU == Inf){
-    return("Error: Please specify valid interval endpoints deltaL and deltaU.")}
+    stop("Please specify valid interval endpoints deltaL and deltaU.")}
   if (deltaL >= deltaU){
-    return("Error: Please specify valid interval endpoints deltaL and deltaU.")}
+    stop("Please specify valid interval endpoints deltaL and deltaU.")}
   if(!is.numeric(alpha) | length(alpha) != 1) {
-    return("Error: Please specify a valid number for alpha.")}
+    stop("Please specify a valid number for alpha.")}
   if (is.numeric(alpha)){
     if (alpha <= 0 | alpha >= 1){
-      return("Error: Please specify a valid number for alpha.")}
+      stop("Please specify a valid number for alpha.")}
   }
-  if(!(type %in% c("welch", "student", "paired"))){
-    return("Error: Please specify a valid type for the t-test(s).")}
 
   if (is.finite(deltaL) & is.finite(deltaU)){
     t1 <- stats::t.test(x, y, mu = deltaL, alternative = "greater", var.equal = ifelse(type == "student", TRUE, FALSE),

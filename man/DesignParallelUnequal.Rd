@@ -15,6 +15,7 @@ DesignParallelUnequal(
   q = 1,
   n1 = NULL,
   n2 = NULL,
+  plot = TRUE,
   seed = NULL,
   sobol = 0
 )
@@ -40,23 +41,25 @@ DesignParallelUnequal(
 
 \item{n2}{the sample size for group 2, must be a single integer such that \eqn{n_{2} \ge 2}.}
 
+\item{plot}{a logical variable indicating whether to return a plot of the power curve. If \code{n1} and \code{n2} are specified instead of \code{q} and \code{targetPower}, this variable is automatically set to \code{FALSE}. If you wish to approximate many power curves, suppressing the plots will expedite this process.}
+
 \item{seed}{if provided, a single positive integer is used to ensure reproducibility when randomizing the Sobol' sequence via \code{sobol()} in the \code{qrng} package.}
 
-\item{sobol}{one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using \code{targetPower} and \code{q}, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for given samples sizes \code{n1} and \code{n2}, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.}
+\item{sobol}{one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using \code{targetPower} and \code{q}, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for given samples sizes \code{n1} and \code{n2}, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.}
 }
 \value{
-The sample sizes or power estimate are returned as a list with supplementary information. If \code{targetPower} and \code{q} are specified to find sample sizes \code{n1} and \code{n2}, a plot of the approximated power curve will also appear in the plot pane.
+The sample sizes or power estimate are returned as a list with supplementary information. If \code{targetPower} and \code{q} are specified to find sample sizes \code{n1} and \code{n2}, a plot of the approximated power curve will appear on the plot pane if \code{plot = TRUE}. To confirm the sample size recommendation, power will be approximated at sample sizes \code{n1 - 1} and \code{max(2, round(q(n1 - 1)))}. This power estimate should be \emph{less} than \code{targetPower}; if not, the choice for \code{q} may be suboptimal in that it may be possible to collect fewer observations in one of the two groups and still achieve the desired study power. To find a sample size that corresponds to a different \code{targetPower}, save this function's output to an object and use the \code{UpdateTargetPower()} function.
 }
 \description{
 Approximates the power of equivalence and noninferiority tests for two independent samples with unequal variances. One can either find sample sizes that achieve desired statistical power or estimate the power for given sample sizes.
 }
 \examples{
 # specify targetPower and q to obtain sample sizes n1 and n2
-DesignParallelUnequal(diff = -4, sigma1 = 15, sigma2 = 18, deltaL = -19.2, deltaU = 19.2,
-targetPower = 0.8, q = 1, alpha = 0.05, seed = 1, sobol = 0)
+DesignParallelUnequal(diff = -4, sigma1 = 18, sigma2 = 15, deltaL = -19.2, deltaU = 19.2,
+alpha = 0.05, targetPower = 0.8, q = 1, plot = TRUE, seed = 1, sobol = 0)
 
 # specify n1 and n2 to estimate power for this design
-DesignParallelUnequal(diff = -4, sigma1 = 15, sigma2 = 18, deltaL = -19.2, deltaU = 19.2,
-n1 = 17, n2 = 17, alpha = 0.05, seed = 1, sobol = 0)
+DesignParallelUnequal(diff = -4, sigma1 = 18, sigma2 = 15, deltaL = -19.2, deltaU = 19.2,
+alpha = 0.05, n1 = 17, n2 = 17, plot = FALSE, seed = 1, sobol = 0)
 
 }

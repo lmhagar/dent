@@ -12,100 +12,108 @@
 #' @param q the multiplicative constant for imbalanced two-group sample size determination (\eqn{n_{2} = q n_{1}}). The default value is 1.
 #' @param n1 the sample size for group 1, must be a single integer such that \eqn{n_{1} \ge 2}. Exactly one of the following pairs must be specified: `targetPower` and `q` or `n1` and `n2`. Specify both `n1` and `n2` to estimate statistical power for these sample sizes.
 #' @param n2 the sample size for group 2, must be a single integer such that \eqn{n_{2} \ge 2}.
+#' @param plot a logical variable indicating whether to return a plot of the power curve. If `n1` and `n2` are specified instead of `q` and `targetPower`, this variable is automatically set to `FALSE`. If you wish to approximate many power curves, suppressing the plots will expedite this process.
 #' @param seed if provided, a single positive integer is used to ensure reproducibility when randomizing the Sobol' sequence via `sobol()` in the `qrng` package.
-#' @param sobol one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using `targetPower` and `q`, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for given samples sizes `n1` and `n2`, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.
+#' @param sobol one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using `targetPower` and `q`, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for given samples sizes `n1` and `n2`, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.
 #'
 #' @examples
 #' # specify targetPower and q to obtain sample sizes n1 and n2
-#' DesignParallelUnequal(diff = -4, sigma1 = 15, sigma2 = 18, deltaL = -19.2, deltaU = 19.2,
-#' targetPower = 0.8, q = 1, alpha = 0.05, seed = 1, sobol = 0)
+#' DesignParallelUnequal(diff = -4, sigma1 = 18, sigma2 = 15, deltaL = -19.2, deltaU = 19.2,
+#' alpha = 0.05, targetPower = 0.8, q = 1, plot = TRUE, seed = 1, sobol = 0)
 #'
 #' # specify n1 and n2 to estimate power for this design
-#' DesignParallelUnequal(diff = -4, sigma1 = 15, sigma2 = 18, deltaL = -19.2, deltaU = 19.2,
-#' n1 = 17, n2 = 17, alpha = 0.05, seed = 1, sobol = 0)
+#' DesignParallelUnequal(diff = -4, sigma1 = 18, sigma2 = 15, deltaL = -19.2, deltaU = 19.2,
+#' alpha = 0.05, n1 = 17, n2 = 17, plot = FALSE, seed = 1, sobol = 0)
 #'
-#' @return The sample sizes or power estimate are returned as a list with supplementary information. If `targetPower` and `q` are specified to find sample sizes `n1` and `n2`, a plot of the approximated power curve will also appear in the plot pane.
+#' @return The sample sizes or power estimate are returned as a list with supplementary information. If `targetPower` and `q` are specified to find sample sizes `n1` and `n2`, a plot of the approximated power curve will appear on the plot pane if `plot = TRUE`. To confirm the sample size recommendation, power will be approximated at sample sizes `n1 - 1` and `max(2, round(q(n1 - 1)))`. This power estimate should be *less* than `targetPower`; if not, the choice for `q` may be suboptimal in that it may be possible to collect fewer observations in one of the two groups and still achieve the desired study power. To find a sample size that corresponds to a different `targetPower`, save this function's output to an object and use the `UpdateTargetPower()` function.
 #' @export
 DesignParallelUnequal <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, deltaL = -Inf,
                                   deltaU = Inf, alpha = NULL, targetPower = NULL, q = 1, n1 = NULL,
-                                  n2 = NULL, seed = NULL, sobol = 0){
+                                  n2 = NULL, plot = TRUE, seed = NULL, sobol = 0){
 
   cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
   ## error checking
   if(!is.numeric(diff) | length(diff) != 1) {
-    return("Error: Please specify a valid number for diff.")}
+    stop("Please specify a valid number for diff.")}
   if(!is.numeric(sigma1) | length(sigma1) != 1){
-    return("Error: Please specify a valid number for sigma1.")}
-  else if (sigma1 <= 0){
-    return("Error: Please specify a valid number for sigma1.")}
+    stop("Please specify a valid number for sigma1.")}
+  else if (sigma1 <= 0 | !is.finite(sigma1)){
+    stop("Please specify a valid number for sigma1.")}
   if(!is.numeric(sigma2) | length(sigma2) != 1){
-    return("Error: Please specify a valid number for sigma2.")}
-  else if (sigma2 <= 0){
-    return("Error: Please specify a valid number for sigma2.")}
+    stop("Please specify a valid number for sigma2.")}
+  else if (sigma2 <= 0 | !is.finite(sigma2)){
+    stop("Please specify a valid number for sigma2.")}
   if(!is.numeric(deltaL) | length(deltaL) != 1){
-    return("Error: Please specify a valid number for deltaL.")}
+    stop("Please specify a valid number for deltaL.")}
   if(!is.numeric(deltaU) | length(deltaU) != 1){
-    return("Error: Please specify a valid number for deltaU.")}
+    stop("Please specify a valid number for deltaU.")}
   if(deltaL == -Inf & deltaU == Inf){
-    return("Error: Please specify valid interval endpoints deltaL and deltaU.")}
+    stop("Please specify valid interval endpoints deltaL and deltaU.")}
   if (deltaL >= deltaU){
-    return("Error: Please specify valid interval endpoints deltaL and deltaU.")}
+    stop("Please specify valid interval endpoints deltaL and deltaU.")}
   if(!is.numeric(alpha) | length(alpha) != 1) {
-    return("Error: Please specify a valid number for alpha.")}
+    stop("Please specify a valid number for alpha.")}
   if (is.numeric(alpha)){
     if (alpha <= 0 | alpha >= 1){
-      return("Error: Please specify a valid number for alpha.")}
+      stop("Please specify a valid number for alpha.")}
   }
   if(sum(c((length(targetPower) != 1 | length(q) != 1), (length(n1) != 1 | length(n2) != 1))) != 1){
-    return("Error: Please specify valid inputs for one of the following pairs: targetPower and q or n1 and n2.")}
+    stop("Please specify valid inputs for one of the following pairs: targetPower and q or n1 and n2.")}
   if(length(targetPower) == 1 & length(q) == 1){
     if(!is.numeric(targetPower)) {
-      return("Error: Please specify a valid number for targetPower.")}
+      stop("Please specify a valid number for targetPower.")}
     # if(is.null(targetPower) | !is.numeric(targetPower)) {
-    #   return("Error: Please specify a valid number for targetPower.")}
+    #   stop("Please specify a valid number for targetPower.")}
     if (is.numeric(targetPower)){
       if (targetPower <= 0 | targetPower >= 1){
-        return("Error: Please specify a valid number for targetPower.")}
+        stop("Please specify a valid number for targetPower.")}
       if(!is.numeric(q)) {
-        return("Error: Please specify a valid number for q.")}
+        stop("Please specify a valid number for q.")}
       else if (is.numeric(q)){
         if (q <= 0) {
-          return("Error: Please specify a valid number for q.")}
+          stop("Please specify a valid number for q.")}
       }
       if (diff >= deltaU | diff <= deltaL){
-        return("Error: Please ensure diff is between deltaL and deltaU.")
+        stop("Please ensure diff is between deltaL and deltaU.")
       }
     }
   }
   if(length(n1) == 1 & length(n2) == 1){
     if(!is.numeric(n1)) {
-      return("Error: Please specify a valid integer for n1.")}
+      stop("Please specify a valid integer for n1.")}
     else if (n1 < 2){
-      return("Error: Please specify a valid integer for n1.")}
+      stop("Please specify a valid integer for n1.")}
     else if (n1%%1 != 0){
-      return("Error: Please specify valid a integer for n1.")
+      stop("Please specify a valid a integer for n1.")
     }
     if(!is.numeric(n2)) {
-      return("Error: Please specify valid a integer for n2.")}
+      stop("Please specify a valid integer for n2.")}
     else if (n2 < 2){
-      return("Error: Please specify valid a integer for n2.")}
+      stop("Please specify a valid integer for n2.")}
     else if (n2%%1 != 0){
-      return("Error: Please specify valid a integer for n2.")
+      stop("Please specify a valid integer for n2.")
     }
   }
   if(!is.null(seed) & (!is.numeric(seed) | length(seed) != 1)) {
-    return("Error: Please specify a valid seed for random number generation.")}
+    stop("Please specify a valid seed for random number generation.")}
   else if (!is.null(seed)){
-    if (seed%%1 != 0){
-      return("Error: Please specify a valid seed for random number generation.")}
+    if (seed%%1 != 0 | seed < 0){
+      stop("Please specify a valid seed for random number generation.")}
   }
   if(!is.numeric(sobol) | length(sobol) != 1) {
-    return("Error: Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+    stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
   else if (sobol < 0){
-    return("Error: Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+    stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
   else if (!(sobol %in% c(0,1,2,3,4))){
-    return("Error: Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+    stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+
+  if (length(plot) != 1 | !(plot %in% c(TRUE, FALSE))){
+    stop("Please provide valid logical input for plot.")
+  }
+  if (length(n1) == 1 & length(n2) == 1){
+    plot <- FALSE
+  }
 
   if (length(targetPower) == 1 & length(q) == 1){
     targetPowerfn <- function(u, deltaL, deltaU, diff, sigma1, sigma2, n_val, alpha, q){
@@ -142,11 +150,9 @@ DesignParallelUnequal <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, del
     }
 
     if (is.null(seed)){
-      sob <- qrng::sobol(2^(sobol + 10), d = 3, randomize = "digital.shift")
+      seed <- ceiling(1000*stats::runif(1))
     }
-    else{
-      sob <- qrng::sobol(2^(sobol + 10), d = 3, randomize = "digital.shift", seed = seed)
-    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 3, randomize = "digital.shift", seed = seed)
 
     upper_val <- (stats::qnorm(alpha/2) - stats::qnorm(0.9999))^2*(sigma1^2 + sigma2^2/q)/(min(abs(diff-deltaL), abs(diff-deltaU)))^2
     endpoints0_vec <- NULL
@@ -222,7 +228,6 @@ DesignParallelUnequal <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, del
                        u = sob[i,], alpha = alpha, q = q)
       }
     }
-    # plot(stats::ecdf(samps), main = "Estimated Power Curve", col = "blue")
     funecdf <- stats::ecdf(samps)
 
     ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
@@ -266,18 +271,29 @@ DesignParallelUnequal <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, del
     df_samps <- data.frame(n_plot = samps)
 
     n_plot <- NULL
-    plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
-      ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], size = 2) +
-      ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
-      ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
-      ggplot2::labs(title = "Approximated Power Curve") +
-      ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
-      ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+    if (plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], linewidth = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
                                                           margin= ggplot2::margin(0,0,10,0))) +
-      ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
-      ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0)))
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
 
-    print(plot_pwr)
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
 
     type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
                    ifelse(!is.finite(deltaL), "b", "c"))
@@ -292,17 +308,20 @@ DesignParallelUnequal <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, del
     results <- structure(list(n1 = n1[2], n2 = n2[2], q = q, diff = diff, sigma1 = sigma1, sigma2 = sigma2,
                               sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
                               note = NOTE,
-                              method = METHOD), class = "power.htest")
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "ParallelUnequal"), class = "power.en.test")
+
+    if (sigma1 == sigma2){
+      message("This function works with equal population variances, but did you mean to use DesignParallelEqual()?")
+    }
     return(results)
   }
 
   if (length(n1) == 1 & length(n2) == 1){
     if (is.null(seed)){
-      sob <- qrng::sobol(2^(sobol+16), d = 3, randomize = "digital.shift")
+      seed <- ceiling(1000*stats::runif(1))
     }
-    else{
-      sob <- qrng::sobol(2^(sobol+16), d = 3, randomize = "digital.shift", seed = seed)
-    }
+    sob <- qrng::sobol(2^(sobol+16), d = 3, randomize = "digital.shift", seed = seed)
 
     ## generate two sds and one mean
     x <- stats::qchisq(sob[,1], n1 - 1)
@@ -344,14 +363,1272 @@ DesignParallelUnequal <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, del
       results <- structure(list(n1 = n1, n2 = n2, diff = diff, sigma1 = sigma1, sigma2 = sigma2,
                                 sig.level = alpha, type.I.error = pwrs, bounds = c(deltaL, deltaU),
                                 note = NOTE,
-                                method = METHOD), class = "power.htest")
+                                method = METHOD), class = "power.en.test")
     }
     else{
       results <- structure(list(n1 = n1, n2 = n2, diff = diff, sigma1 = sigma1, sigma2 = sigma2,
                                 sig.level = alpha, power = pwrs, bounds = c(deltaL, deltaU),
-                                method = METHOD), class = "power.htest")
+                                method = METHOD), class = "power.en.test")
     }
 
+    if (sigma1 == sigma2){
+      message("This function works with equal population variances, but did you mean to use DesignParallelEqual()?")
+    }
+    return(results)
+  }
+}
+
+#' @title Printing power analysis for equivalence and noninferiority tests
+#' @name power.en.test-methods
+#'
+#' @description Helper function to print power.en.test objects
+#'
+#' @param x an power.en.test object
+#' @param ... further arguments to be passed through (see `print()` function)
+#'
+#' @rdname power.en.test-methods
+#' @method print power.en.test
+#' @keywords internal
+#' @export
+print.power.en.test <- function(x, ...){
+
+  names_remove <- c("samps", "seed", "sobol", "design")
+
+  inds_remove <- which(names_remove %in% names(x))
+
+  if (length(inds_remove) > 0){
+    purge <- which(unlist(lapply(lapply(names(x), function(z) which(z == names_remove)), function(y) as.numeric((length(y) > 0)))) > 0)
+    output_temp <- structure(x[-c(purge)], class = "power.htest")
+
+  } else {
+    output_temp <- structure(x, class = "power.htest")
+  }
+
+
+  # if (!(is.null(x$q))){
+  #   output_temp <- structure(list(n1 = x$n1, n2 = x$n2, q = x$q, diff = x$diff, sigma1 = x$sigma1, sigma2 = x$sigma2,
+  #                           sig.level = x$sig.level, power = x$power, bounds = x$bounds,
+  #                           note = x$note,
+  #                           method = x$method), class = "power.htest")
+  # } else if (!(is.null(x$note))) {
+  #   output_temp <- structure(list(n1 = x$n1, n2 = x$n2, diff = x$diff, sigma1 = x$sigma1, sigma2 = x$sigma2,
+  #                                 sig.level = x$sig.level, type.I.error = x$type.I.error, bounds = x$bounds,
+  #                                 note = x$note,
+  #                                 method = x$method), class = "power.htest")
+  # } else{
+  #   output_temp <- structure(list(n1 = x$n1, n2 = x$n2, diff = x$diff, sigma1 = x$sigma1, sigma2 = x$sigma2,
+  #                                 sig.level = x$sig.level, power = x$power, bounds = x$bounds,
+  #                                 method = x$method), class = "power.htest")
+  # }
+
+  print(output_temp)
+}
+
+#' Updated Power Calculations for Equivalence and Noninferiority Tests
+#'
+#' Performs sample size calculations for equivalence and noninferiority tests using output saved from a previous function call with an updated target for statistical power.
+#'
+#' @param power.en.test an object to which the output from a `Design...()` function call was saved. The input `targetPower` must have been specified in this function call so that the power curve was approximated. This function will return an error if the original `Design...()` function call specified `n`, `n1`, or `n2`. All other inputs from the initial `Design()` function call will be passed to this function.
+#' @param targetPower the desired statistical power of the equivalence or noninferiority test, must be a single number between 0 and 1 (exclusive).
+#' @param plot a logical variable indicating whether to return a plot of the power curve.
+#'
+#' @examples
+#' # save output from `Design...()` function call with previous `targetPower` specification
+#' # to object `design.result`.
+#' design.result <- DesignParallelUnequal(diff = -4, sigma1 = 15, sigma2 = 18, deltaL = -19.2,
+#'                  deltaU = 19.2, alpha = 0.05, targetPower = 0.8, q = 1, seed = 1, sobol = 0)
+#'
+#' UpdateTargetPower(power.en.test = design.result, targetPower = 0.7, plot = TRUE)
+#'
+#' @return The sample sizes or power estimate are returned as a list with supplementary information. A plot of the approximated power curve will appear on the plot pane if `plot = TRUE`.
+#' @export
+UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = TRUE){
+
+  if(class(power.en.test) != "power.en.test"){
+    stop("Please input valid power.en.test object.")
+  }
+
+  deltaL <- power.en.test$bounds[1]
+  deltaU <- power.en.test$bounds[2]
+  alpha <- power.en.test$sig.level
+  seed <- power.en.test$seed
+  sobol <- power.en.test$sobol
+  design <- power.en.test$design
+
+  if (length(design) != 1){
+    stop("Please input a power.en.test object generated by specifying targetPower with a valid design type.")
+  } else if (!(design %in% c("ParallelEqual", "ParallelUnequal", "OneSample", "PairedSample",
+                      "Crossover2x2Unequal", "Crossover2x2Equal", "CrossoverDualUnequal",
+                      "CrossoverDualEqualComp", "CrossoverDualEqualNoComp"))){
+    stop("Please input a power.en.test object generated by specifying targetPower with a valid design type.")
+  }
+
+  cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+  ## error checking
+  if(!is.numeric(deltaL) | length(deltaL) != 1){
+    stop("Please specify a valid number for deltaL.")}
+  if(!is.numeric(deltaU) | length(deltaU) != 1){
+    stop("Please specify a valid number for deltaU.")}
+  if(deltaL == -Inf & deltaU == Inf){
+    stop("Please specify valid interval endpoints deltaL and deltaU.")}
+  if (deltaL >= deltaU){
+    stop("Please specify valid interval endpoints deltaL and deltaU.")}
+  if(!is.numeric(alpha) | length(alpha) != 1) {
+    stop("Please specify a valid number for alpha.")}
+  if (is.numeric(alpha)){
+    if (alpha <= 0 | alpha >= 1){
+      stop("Please specify a valid number for alpha.")}
+  }
+  if(!is.null(seed) & (!is.numeric(seed) | length(seed) != 1)) {
+    stop("Please specify a valid seed for random number generation.")}
+  else if (!is.null(seed)){
+    if (seed%%1 != 0 | seed < 0){
+      stop("Please specify a valid seed for random number generation.")}
+  }
+  if(!is.numeric(sobol) | length(sobol) != 1) {
+    stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+  else if (sobol < 0){
+    stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+  else if (!(sobol %in% c(0,1,2,3,4))){
+    stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+
+  if (length(plot) != 1 | !(plot %in% c(TRUE, FALSE))){
+    stop("Please provide valid logical input for plot.")
+  }
+
+  uu <- function(f, lower, upper, tol = 1e-4, maxiter =1000L, ...) {
+    f.lower <- f(lower, ...)
+    f.upper <- f(upper, ...)
+    val <- .External2(stats:::C_zeroin2, function(arg) f(arg, ...),
+                      lower, upper, f.lower, f.upper, tol, as.integer(maxiter))
+    return(val[1])
+  }
+
+  if (design == "ParallelUnequal"){
+
+    diff <- power.en.test$diff
+    sigma1 <- power.en.test$sigma1
+    sigma2 <- power.en.test$sigma2
+    q <- power.en.test$q
+
+    if(!is.numeric(diff) | length(diff) != 1) {
+      stop("Please specify a valid number for diff.")}
+    if(!is.numeric(sigma1) | length(sigma1) != 1){
+      stop("Please specify a valid number for sigma1.")}
+    else if (sigma1 <= 0 | !is.finite(sigma1)){
+      stop("Please specify a valid number for sigma1.")}
+    if(!is.numeric(sigma2) | length(sigma2) != 1){
+      stop("Please specify a valid number for sigma2.")}
+    else if (sigma2 <= 0 | !is.finite(sigma2)){
+      stop("Please specify a valid number for sigma2.")}
+
+    if(sum(c((length(targetPower) != 1 | length(q) != 1)))){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1 & length(q) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      # if(is.null(targetPower) | !is.numeric(targetPower)) {
+      #   stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if(!is.numeric(q)) {
+          stop("Please specify a valid number for q.")}
+        else if (is.numeric(q)){
+          if (q <= 0) {
+            stop("Please specify a valid number for q.")}
+        }
+        if (diff >= deltaU | diff <= deltaL){
+          stop("Please ensure diff is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 3, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n1 <- c(ceiling(n_rough)-1, ceiling(n_rough))
+    n2 <- pmax(2, round(q*n1))
+
+    for (j in 1:length(n1)){
+      n1_temp <- n1[j]; n2_temp <- n2[j]
+      ## generate two sds and one mean
+      x <- stats::qchisq(sob[,1], n1_temp - 1)
+      y <- stats::qchisq(sob[,2], n2_temp - 1)
+      z <- stats::qnorm(sob[,3], diff, sqrt(sigma1^2/n1_temp + sigma2^2/n2_temp))
+
+      sdv <- sqrt(sigma1^2*x/((n1_temp - 1)*n1_temp) + sigma2^2*y/(n2_temp*(n2_temp - 1)))
+
+      dfw <- sdv^4/(sigma1^4*x^2/((n1_temp - 1)^3*n1_temp^2) + sigma2^4*y^2/((n2_temp - 1)^3*n2_temp^2))
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, dfw)
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, dfw)
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if (plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], linewidth = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Noninferiority test power calculation (for Group 2)",
+                     c = "Noninferiority test power calculation (for Group 1)")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n1 = ", n1[1], " and n2 = ", n2[1],".",
+                   "\n", "Particularly if q is not 1, you may need to explore sample sizes near n1 and n2.")
+
+    results <- structure(list(n1 = n1[2], n2 = n2[2], q = q, diff = diff, sigma1 = sigma1, sigma2 = sigma2,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "ParallelUnequal"), class = "power.en.test")
+
+    if (sigma1 == sigma2){
+      message("This function works with equal population variances, but did you mean to use DesignParallelEqual()?")
+    }
+    return(results)
+  }
+
+  if (design == "ParallelEqual"){
+
+    diff <- power.en.test$diff
+    sigma <- power.en.test$sigma
+    q <- power.en.test$q
+
+    if(!is.numeric(diff) | length(diff) != 1) {
+      stop("Please specify a valid number for diff.")}
+
+    if(!is.numeric(sigma) | length(sigma) != 1 ){
+      stop("Please specify a valid number for sigma.")}
+    else if (sigma <= 0 | !is.finite(sigma)){
+      stop("Please specify a valid number for sigma.")}
+
+    if(sum(c((length(targetPower) != 1 | length(q) != 1)))){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1 & length(q) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if(!is.numeric(q)) {
+          stop("Please specify a valid number for q.")}
+        else if (is.numeric(q)){
+          if (q <= 0) {
+            stop("Please specify a valid number for q.")}
+        }
+        if (diff >= deltaU | diff <= deltaL){
+          stop("Please ensure diff is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n1 <- c(ceiling(n_rough)-1, ceiling(n_rough))
+    n2 <- pmax(2, round(q*n1))
+
+    for (j in 1:length(n1)){
+      n1_temp <- n1[j]; n2_temp <- n2[j]
+
+      x <- stats::qchisq(sob[,1], n1_temp + n2_temp - 2)
+      z <- stats::qnorm(sob[,2], diff, sigma*sqrt(1/n1_temp + 1/n2_temp))
+
+      sdv <- sqrt(x*sigma^2/(n1_temp + n2_temp - 2))*sqrt(1/n1_temp + 1/n2_temp)
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, n1_temp + n2_temp - 2)
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, n1_temp + n2_temp - 2)
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if (plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], linewidth = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Noninferiority test power calculation (for Group 2)",
+                     c = "Noninferiority test power calculation (for Group 1)")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n1 = ", n1[1], " and n2 = ", n2[1],".",
+                   "\n", "Particularly if q is not 1, you may need to explore sample sizes near n1 and n2.")
+
+    results <- structure(list(n1 = n1[2], n2 = n2[2], q = q, diff = diff, sigma = sigma,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "ParallelEqual"), class = "power.en.test")
+    return(results)
+  }
+
+  if (design == "OneSample"){
+
+    mu <- power.en.test$mu
+    sigma <- power.en.test$sigma
+
+    if(!is.numeric(mu) | length(mu) != 1) {
+      stop("Please specify a valid number for mu.")}
+
+    if(!is.numeric(sigma) | length(sigma) != 1){
+      stop("Please specify a valid number for sigma.")}
+    else if (sigma <= 0 | !is.finite(sigma)){
+      stop("Please specify a valid number for sigma.")}
+
+    if(length(targetPower) != 1){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      # if(is.null(targetPower) | !is.numeric(targetPower)) {
+      #   stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if (mu >= deltaU | mu <= deltaL){
+          stop("Please ensure mu is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n <- c(ceiling(n_rough)-1, ceiling(n_rough))
+
+    for (j in 1:length(n)){
+      n_temp <- n[j]
+
+      x <- stats::qchisq(sob[,1], n_temp - 1)
+      z <- stats::qnorm(sob[,2], mu, sigma*sqrt(1/n_temp))
+
+      sdv <- sqrt(x*sigma^2/(n_temp - 1))*sqrt(1/n_temp)
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, n_temp - 1)
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, n_temp - 1)
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if (plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], linewidth = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n))) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Nonsuperiority test power calculation",
+                     c = "Noninferiority test power calculation")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n = ", n[1],".")
+
+    results <- structure(list(n = n[2], mu = mu, sigma = sigma,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "OneSample"), class = "power.en.test")
+    return(results)
+  }
+
+  if (design == "PairedSample"){
+
+    diff <- power.en.test$diff
+    sigma <- power.en.test$sigma
+
+    if(!is.numeric(diff) | length(diff) != 1) {
+      stop("Please specify a valid number for diff.")}
+
+    if(!is.numeric(sigma) | length(sigma) != 1){
+      stop("Please specify a valid number for sigma.")}
+    else if (sigma <= 0 | !is.finite(sigma)){
+      stop("Please specify a valid number for sigma.")}
+
+    if(length(targetPower) != 1){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      # if(is.null(targetPower) | !is.numeric(targetPower)) {
+      #   stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if (diff >= deltaU | diff <= deltaL){
+          stop("Please ensure diff is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n <- c(ceiling(n_rough)-1, ceiling(n_rough))
+
+    for (j in 1:length(n)){
+      n_temp <- n[j];
+
+      x <- stats::qchisq(sob[,1], n_temp - 1)
+      z <- stats::qnorm(sob[,2], diff, sigma*sqrt(1/n_temp))
+
+      sdv <- sqrt(x*sigma^2/(n_temp - 1))*sqrt(1/n_temp)
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, n_temp - 1)
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, n_temp - 1)
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if (plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], linewidth = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n))) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Noninferiority test power calculation (for Group 2)",
+                     c = "Noninferiority test power calculation (for Group 1)")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n = ", n[1],".",
+                   "\n", "n is the number of pairs and sigma is the sd of the paired differences.")
+
+    results <- structure(list(n = n[2], diff = diff, sigma = sigma,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "PairedSample"), class = "power.en.test")
+    return(results)
+  }
+
+  if (design == "Crossover2x2Unequal"){
+
+    diff <- power.en.test$diff
+    sigma1 <- power.en.test$sigma1/2
+    sigma2 <- power.en.test$sigma2/2
+    q <- power.en.test$q
+
+    if(!is.numeric(diff) | length(diff) != 1) {
+      stop("Please specify a valid number for diff.")}
+    if(!is.numeric(sigma1) | length(sigma1) != 1){
+      stop("Please specify a valid number for sigma1.")}
+    else if (sigma1 <= 0 | !is.finite(sigma1)){
+      stop("Please specify a valid number for sigma1.")}
+    if(!is.numeric(sigma2) | length(sigma2) != 1){
+      stop("Please specify a valid number for sigma2.")}
+    else if (sigma2 <= 0 | !is.finite(sigma2)){
+      stop("Please specify a valid number for sigma2.")}
+
+    if(sum(c((length(targetPower) != 1 | length(q) != 1)))){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1 & length(q) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      # if(is.null(targetPower) | !is.numeric(targetPower)) {
+      #   stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if(!is.numeric(q)) {
+          stop("Please specify a valid number for q.")}
+        else if (is.numeric(q)){
+          if (q <= 0) {
+            stop("Please specify a valid number for q.")}
+        }
+        if (diff >= deltaU | diff <= deltaL){
+          stop("Please ensure diff is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 3, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n1 <- c(ceiling(n_rough)-1, ceiling(n_rough))
+    n2 <- pmax(2, round(q*n1))
+
+    for (j in 1:length(n1)){
+      n1_temp <- n1[j]; n2_temp <- n2[j]
+      ## generate two sds and one mean
+      x <- stats::qchisq(sob[,1], n1_temp - 1)
+      y <- stats::qchisq(sob[,2], n2_temp - 1)
+      z <- stats::qnorm(sob[,3], diff, sqrt(sigma1^2/n1_temp + sigma2^2/n2_temp))
+
+      sdv <- sqrt(sigma1^2*x/((n1_temp - 1)*n1_temp) + sigma2^2*y/(n2_temp*(n2_temp - 1)))
+
+      dfw <- sdv^4/(sigma1^4*x^2/((n1_temp - 1)^3*n1_temp^2) + sigma2^4*y^2/((n2_temp - 1)^3*n2_temp^2))
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, dfw)
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, dfw)
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if(plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], size = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Noninferiority test power calculation (for Group 2)",
+                     c = "Noninferiority test power calculation (for Group 1)")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n1 = ", n1[1], " and n2 = ", n2[1],".",
+                   "\n", "Particularly if q is not 1, you may need to explore sample sizes near n1 and n2.",
+                   "\n", "n1 and n2 are the # of subjects in sequences 1 and 2, and sigma1 and sigma2 denote intra-subject sd.")
+
+    results <- structure(list(n1 = n1[2], n2 = n2[2], q = q, diff = diff, sigma1 = 2*sigma1, sigma2 = 2*sigma2,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "Crossover2x2Unequal"), class = "power.en.test")
+    if (sigma1 == sigma2){
+      message("This function works with equal population variances, but did you mean to use DesignCrossover2x2Equal()?")
+    }
+    return(results)
+  }
+
+  if (design == "Crossover2x2Equal"){
+
+    diff <- power.en.test$diff
+    sigma <- power.en.test$sigma/2
+    q <- power.en.test$q
+
+    if(!is.numeric(diff) | length(diff) != 1) {
+      stop("Please specify a valid number for diff.")}
+
+    if(!is.numeric(sigma) | length(sigma) != 1){
+      stop("Please specify a valid number for sigma.")}
+    else if (sigma <= 0 | !is.finite(sigma)){
+      stop("Please specify a valid number for sigma.")}
+
+    if(sum(c((length(targetPower) != 1 | length(q) != 1)))){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1 & length(q) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if(!is.numeric(q)) {
+          stop("Please specify a valid number for q.")}
+        else if (is.numeric(q)){
+          if (q <= 0) {
+            stop("Please specify a valid number for q.")}
+        }
+        if (diff >= deltaU | diff <= deltaL){
+          stop("Please ensure diff is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n1 <- c(ceiling(n_rough)-1, ceiling(n_rough))
+    n2 <- pmax(2, round(q*n1))
+
+    for (j in 1:length(n1)){
+      n1_temp <- n1[j]; n2_temp <- n2[j]
+
+      x <- stats::qchisq(sob[,1], n1_temp + n2_temp - 2)
+      z <- stats::qnorm(sob[,2], diff, sigma*sqrt(1/n1_temp + 1/n2_temp))
+
+      sdv <- sqrt(x*sigma^2/(n1_temp + n2_temp - 2))*sqrt(1/n1_temp + 1/n2_temp)
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, n1_temp + n2_temp - 2)
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, n1_temp + n2_temp - 2)
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if (plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], size = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Noninferiority test power calculation (for Group 2)",
+                     c = "Noninferiority test power calculation (for Group 1)")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n1 = ", n1[1], " and n2 = ", n2[1],".",
+                   "\n", "Particularly if q is not 1, you may need to explore sample sizes near n1 and n2.",
+                   "\n", "n1 and n2 are the # of subjects in sequences 1 and 2, and sigma denotes intra-subject sd.")
+
+    results <- structure(list(n1 = n1[2], n2 = n2[2], q = q, diff = diff, sigma = 2*sigma,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "Crossover2x2Equal"), class = "power.en.test")
+    return(results)
+  }
+
+  if (design == "CrossoverDualUnequal"){
+
+    diff <- power.en.test$diff
+    sigma1 <- power.en.test$sigma1/sqrt(8)
+    sigma2 <- power.en.test$sigma2/sqrt(8)
+    q <- power.en.test$q
+
+    if(!is.numeric(diff) | length(diff) != 1) {
+      stop("Please specify a valid number for diff.")}
+    if(!is.numeric(sigma1) | length(sigma1) != 1){
+      stop("Please specify a valid number for sigma1.")}
+    else if (sigma1 <= 0 | !is.finite(sigma1)){
+      stop("Please specify a valid number for sigma1.")}
+    if(!is.numeric(sigma2) | length(sigma2) != 1){
+      stop("Please specify a valid number for sigma2.")}
+    else if (sigma2 <= 0 | !is.finite(sigma2)){
+      stop("Please specify a valid number for sigma2.")}
+
+    if(sum(c((length(targetPower) != 1 | length(q) != 1)))){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1 & length(q) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      # if(is.null(targetPower) | !is.numeric(targetPower)) {
+      #   stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if(!is.numeric(q)) {
+          stop("Please specify a valid number for q.")}
+        else if (is.numeric(q)){
+          if (q <= 0) {
+            stop("Please specify a valid number for q.")}
+        }
+        if (diff >= deltaU | diff <= deltaL){
+          stop("Please ensure diff is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 3, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n1 <- c(ceiling(n_rough)-1, ceiling(n_rough))
+    n2 <- pmax(2, round(q*n1))
+
+    for (j in 1:length(n1)){
+      n1_temp <- n1[j]; n2_temp <- n2[j]
+      ## generate two sds and one mean
+      x <- stats::qchisq(sob[,1], n1_temp - 1)
+      y <- stats::qchisq(sob[,2], n2_temp - 1)
+      z <- stats::qnorm(sob[,3], diff, sqrt(sigma1^2/n1_temp + sigma2^2/n2_temp))
+
+      sdv <- sqrt(sigma1^2*x/((n1_temp - 1)*n1_temp) + sigma2^2*y/(n2_temp*(n2_temp - 1)))
+
+      dfw <- sdv^4/(sigma1^4*x^2/((n1_temp - 1)^3*n1_temp^2) + sigma2^4*y^2/((n2_temp - 1)^3*n2_temp^2))
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, dfw)
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, dfw)
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if(plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], size = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Noninferiority test power calculation (for Group 2)",
+                     c = "Noninferiority test power calculation (for Group 1)")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n1 = ", n1[1], " and n2 = ", n2[1],".",
+                   "\n", "Particularly if q is not 1, you may need to explore sample sizes near n1 and n2.",
+                   "\n", "n1 and n2 are the # of subjects in sequences 1 and 2, and sigma1 and sigma2 denote intra-subject sd.")
+
+    results <- structure(list(n1 = n1[2], n2 = n2[2], q = q, diff = diff, sigma1 = sqrt(8)*sigma1, sigma2 = sqrt(8)*sigma2,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "CrossoverDualUnequal"), class = "power.en.test")
+    if (sigma1 == sigma2){
+      message("This function works with equal population variances, but did you mean to use DesignCrossoverDualEqual()?")
+    }
+    return(results)
+  }
+
+  if (design == "CrossoverDualEqualNoComp"){
+
+    diff <- power.en.test$diff
+    sigma <- power.en.test$sigma/sqrt(8)
+    q <- power.en.test$q
+
+    if(!is.numeric(diff) | length(diff) != 1) {
+      stop("Please specify a valid number for diff.")}
+
+    if(!is.numeric(sigma) | length(sigma) != 1){
+      stop("Please specify a valid number for sigma.")}
+    else if (sigma <= 0 | !is.finite(sigma)){
+      stop("Please specify a valid number for sigma.")}
+
+    if(sum(c((length(targetPower) != 1 | length(q) != 1)))){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1 & length(q) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if(!is.numeric(q)) {
+          stop("Please specify a valid number for q.")}
+        else if (is.numeric(q)){
+          if (q <= 0) {
+            stop("Please specify a valid number for q.")}
+        }
+        if (diff >= deltaU | diff <= deltaL){
+          stop("Please ensure diff is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n1 <- c(ceiling(n_rough)-1, ceiling(n_rough))
+    n2 <- pmax(2, round(q*n1))
+
+    for (j in 1:length(n1)){
+      n1_temp <- n1[j]; n2_temp <- n2[j]
+
+      x <- stats::qchisq(sob[,1], n1_temp + n2_temp - 2)
+      z <- stats::qnorm(sob[,2], diff, sigma*sqrt(1/n1_temp + 1/n2_temp))
+
+      sdv <- sqrt(x*sigma^2/(n1_temp + n2_temp - 2))*sqrt(1/n1_temp + 1/n2_temp)
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, n1_temp + n2_temp - 2)
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, n1_temp + n2_temp - 2)
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if (plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], size = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Noninferiority test power calculation (for Group 2)",
+                     c = "Noninferiority test power calculation (for Group 1)")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n1 = ", n1[1], " and n2 = ", n2[1],".",
+                   "\n", "Particularly if q is not 1, you may need to explore sample sizes near n1 and n2.",
+                   "\n", "n1 and n2 are the # of subjects in sequences 1 and 2, and sigma denotes intra-subject sd.")
+
+    results <- structure(list(n1 = n1[2], n2 = n2[2], q = q, diff = diff, sigma = sqrt(8)*sigma,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "CrossoverDualEqualNoComp"), class = "power.en.test")
+    return(results)
+  }
+
+  if (design == "CrossoverDualEqualComp"){
+
+    diff <- power.en.test$diff
+    sigma <- power.en.test$sigma/sqrt(8)
+    q <- power.en.test$q
+
+    if(!is.numeric(diff) | length(diff) != 1) {
+      stop("Please specify a valid number for diff.")}
+
+    if(!is.numeric(sigma) | length(sigma) != 1){
+      stop("Please specify a valid number for sigma.")}
+    else if (sigma <= 0 | !is.finite(sigma)){
+      stop("Please specify a valid number for sigma.")}
+
+    if(sum(c((length(targetPower) != 1 | length(q) != 1)))){
+      stop("Please specify a valid input for targetPower.")}
+    if(length(targetPower) == 1 & length(q) == 1){
+      if(!is.numeric(targetPower)) {
+        stop("Please specify a valid number for targetPower.")}
+      if (is.numeric(targetPower)){
+        if (targetPower <= 0 | targetPower >= 1){
+          stop("Please specify a valid number for targetPower.")}
+        if(!is.numeric(q)) {
+          stop("Please specify a valid number for q.")}
+        else if (is.numeric(q)){
+          if (q <= 0) {
+            stop("Please specify a valid number for q.")}
+        }
+        if (diff >= deltaU | diff <= deltaL){
+          stop("Please ensure diff is between deltaL and deltaU.")
+        }
+      }
+    }
+
+    if (is.null(seed)){
+      seed <- ceiling(1000*stats::runif(1))
+    }
+    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+
+    samps <- power.en.test$samps
+    funecdf <- stats::ecdf(samps)
+
+    ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
+    n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
+                  pwr = targetPower)
+
+    pwrs <- NULL
+    n1 <- c(ceiling(n_rough)-1, ceiling(n_rough))
+    n2 <- pmax(2, round(q*n1))
+
+    for (j in 1:length(n1)){
+      n1_temp <- n1[j]; n2_temp <- n2[j]
+
+      x <- stats::qchisq(sob[,1], n1_temp + n2_temp - 2)
+      z <- stats::qnorm(sob[,2], diff, sigma*sqrt(1/n1_temp + 1/n2_temp))
+
+      sdv <- sqrt(x*sigma^2/(n1_temp + n2_temp - 2))*sqrt(1/n1_temp + 1/n2_temp)
+
+      if (deltaU == Inf){
+        thresUp <- rep(Inf, length(z))
+      }
+      else{
+        thresUp <- (deltaU - z)/stats::qt(1-alpha, 2*(n1_temp + n2_temp - 2))
+      }
+
+      if (deltaL == -Inf){
+        thresLow <- rep(Inf, length(z))
+      }
+      else{
+        thresLow <- (z - deltaL)/stats::qt(1-alpha, 2*(n1_temp + n2_temp - 2))
+      }
+
+      thres <- pmin(thresUp, thresLow)
+
+      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    }
+
+    df_samps <- data.frame(n_plot = samps)
+
+    n_plot <- NULL
+    if (plot == TRUE){
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], size = 2) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
+        ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
+        ggplot2::labs(title = "Approximated Power Curve") +
+        ggplot2::labs(y = "Power", x=bquote(italic(n)[1]*"  ("*italic(n)[2]*" = "*.(round(q,3))*italic(n)[1]*")")) +
+        ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5,size=20,face="bold",
+                                                          margin= ggplot2::margin(0,0,10,0))) +
+        ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
+        ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
+      if (is.na(plot_min)){
+        plot_min <- floor(ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$continuous_range[1])
+      }
+
+      plot_pwr <- plot_pwr +
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+
+      print(plot_pwr)
+    }
+
+    type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
+                   ifelse(!is.finite(deltaL), "b", "c"))
+
+    METHOD <- switch(type, a = "Equivalence test power calculation (TOST)",
+                     b = "Noninferiority test power calculation (for Group 2)",
+                     c = "Noninferiority test power calculation (for Group 1)")
+
+    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n1 = ", n1[1], " and n2 = ", n2[1],".",
+                   "\n", "Particularly if q is not 1, you may need to explore sample sizes near n1 and n2.",
+                   "\n", "n1 and n2 are the # of subjects in sequences 1 and 2, and sigma denotes intra-subject sd.")
+
+    results <- structure(list(n1 = n1[2], n2 = n2[2], q = q, diff = diff, sigma = sqrt(8)*sigma,
+                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
+                              note = NOTE,
+                              method = METHOD,
+                              samps = samps, seed = seed, sobol = sobol, design = "CrossoverDualEqualComp"), class = "power.en.test")
     return(results)
   }
 }
