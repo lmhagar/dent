@@ -33,7 +33,7 @@ The test results are returned as a list with supplementary information. Equivale
 Conducts equivalence and noninferiority tests with two samples (including those with paired data).
 }
 \examples{
-# specify targetPower to obtain sample sizes n
+# analyze data from two groups
 AnalyzeTwoSample(x = rnorm(15), y = rnorm(15), type = "welch", deltaL = -1,
 deltaU = 1, alpha = 0.05)
 

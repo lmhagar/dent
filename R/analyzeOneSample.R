@@ -8,7 +8,7 @@
 #' @param alpha the significance level \eqn{\alpha \in (0,1)}.
 #'
 #' @examples
-#' # specify targetPower to obtain sample sizes n
+#' # analyze data from one group
 #' AnalyzeOneSample(x = rnorm(15), deltaL = -1, deltaU = 1, alpha = 0.05)
 #'
 #' @return The test results are returned as a list with supplementary information. Equivalence, noninferiority, or nonsuperiority is concluded when all *p*-values in the Results table are less than `alpha`. Otherwise, we do not reject the null hypotheses of inequivalence, inferiority, or superiority.

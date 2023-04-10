@@ -10,7 +10,7 @@
 #' @param alpha the significance level \eqn{\alpha \in (0,1)}.
 #'
 #' @examples
-#' # specify targetPower to obtain sample sizes n
+#' # analyze data from a 2x2 crossover trial
 #' AnalyzeCrossover2x2(X = cbind(rnorm(15), rnorm(15, 0.5)), Y = cbind(rnorm(10, 0.5), rnorm(10)),
 #' type = "welch", deltaL = -1, deltaU = 1, alpha = 0.05)
 #'
@@ -107,7 +107,7 @@ AnalyzeCrossover2x2 <- function(X = NULL, Y = NULL, type = "welch", deltaL = -In
 #' @param compSymm a logical variable indicating whether the covariance matrix for the three responses from the same subject can be assumed to take a compound symmetric structure. If so, the relevant Student's *t*-tests are conducted with \eqn{2(n_1 + n_2 - 2)} degrees of freedom. If not, the *t*-tests are conducted with \eqn{n_1 + n_2 - 2} degrees of freedom. The default setting is `FALSE`. Please see Chapter 9 of Chow and Liu (2008) for more information.
 #'
 #' @examples
-#' # specify targetPower to obtain sample sizes n
+#' # analyze data from a two-sequence dual crossover trial
 #' AnalyzeCrossoverDual(X = cbind(rnorm(15), rnorm(15, 0.5), rnorm(15, 0.25)),
 #' Y = cbind(rnorm(10, 0.5), rnorm(10), rnorm(10, 0.75)), type = "welch",
 #' deltaL = -1, deltaU = 1, alpha = 0.05, compSymm = FALSE)

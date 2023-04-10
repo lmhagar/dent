@@ -36,7 +36,7 @@ The test results are returned as a list with supplementary information. Equivale
 Conducts equivalence and noninferiority tests for two-sequence dual crossover designs.
 }
 \examples{
-# specify targetPower to obtain sample sizes n
+# analyze data from a two-sequence dual crossover trial
 AnalyzeCrossoverDual(X = cbind(rnorm(15), rnorm(15, 0.5), rnorm(15, 0.25)),
 Y = cbind(rnorm(10, 0.5), rnorm(10), rnorm(10, 0.75)), type = "welch",
 deltaL = -1, deltaU = 1, alpha = 0.05, compSymm = FALSE)

@@ -1,0 +1,9 @@
+citHeader("To cite dent in publications use:")
+
+bibentry(
+   bibtype = "Manual",
+   title = "dent: Design of equivalence and noninferiority tests",
+   author = c(person("Luke", "Hagar"), person("Nathaniel", "Stevens", "T.")),
+   year = 2023,
+   note = "R package version 0.0.1",
+   url = "https://github.com/lmhagar/dent")

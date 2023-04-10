@@ -33,7 +33,7 @@ The test results are returned as a list with supplementary information. Equivale
 Conducts equivalence and noninferiority tests for 2\eqn{\times}2 crossover studies.
 }
 \examples{
-# specify targetPower to obtain sample sizes n
+# analyze data from a 2x2 crossover trial
 AnalyzeCrossover2x2(X = cbind(rnorm(15), rnorm(15, 0.5)), Y = cbind(rnorm(10, 0.5), rnorm(10)),
 type = "welch", deltaL = -1, deltaU = 1, alpha = 0.05)
 

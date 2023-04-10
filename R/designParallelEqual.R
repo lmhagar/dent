@@ -133,12 +133,58 @@ DesignParallelEqual <- function(diff = NULL, sigma = NULL, deltaL = -Inf, deltaU
       return(thres - sdv)
     }
 
-    uu <- function(f, lower, upper, tol = 1e-4, maxiter =1000L, ...) {
-      f.lower <- f(lower, ...)
-      f.upper <- f(upper, ...)
-      val <- .External2(stats:::C_zeroin2, function(arg) f(arg, ...),
-                        lower, upper, f.lower, f.upper, tol, as.integer(maxiter))
-      return(val[1])
+    uu <- function (fun, lower, upper, maxiter = 1000, tol = 1e-4, ...)
+    {
+      f <- function(x) fun(x, ...)
+      x1 <- lower
+      f1 <- f(x1)
+      x2 <- upper
+      f2 <- f(x2)
+      x3 <- 0.5 * (lower + upper)
+      niter <- 1
+      while (niter <= maxiter) {
+        f3 <- f(x3)
+        if (abs(f3) < tol) {
+          x0 <- x3
+          return(x0)
+        }
+        if (f1 * f3 < 0) {
+          upper <- x3}
+        else {lower <- x3}
+        if ((upper - lower) < tol * max(abs(upper), 1)) {
+          x0 <- 0.5 * (lower + upper)
+          return(x0)
+        }
+        denom <- (f2 - f1) * (f3 - f1) * (f2 - f3)
+        numer <- x3 * (f1 - f2) * (f2 - f3 + f1) + f2 * x1 *
+          (f2 - f3) + f1 * x2 * (f3 - f1)
+        if (denom == 0) {
+          dx <- upper - lower
+        }
+        else {
+          dx <- f3 * numer/denom
+        }
+        x <- x3 + dx
+        if ((upper - x) * (x - lower) < 0) {
+          dx <- 0.5 * (upper - lower)
+          x <- lower + dx
+        }
+        if (x1 < x3) {
+          x2 <- x3
+          f2 <- f3
+        }
+        else {
+          x1 <- x3
+          f1 <- f3
+        }
+        niter <- niter + 1
+        if (abs(x - x3) < tol) {
+          x0 <- x
+          return(x0)
+        }
+        x3 <- x
+      }
+      return(x0)
     }
 
     if (is.null(seed)){

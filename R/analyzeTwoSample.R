@@ -10,7 +10,7 @@
 #' @param alpha the significance level \eqn{\alpha \in (0,1)}.
 #'
 #' @examples
-#' # specify targetPower to obtain sample sizes n
+#' # analyze data from two groups
 #' AnalyzeTwoSample(x = rnorm(15), y = rnorm(15), type = "welch", deltaL = -1,
 #' deltaU = 1, alpha = 0.05)
 #'

@@ -45,7 +45,7 @@ The sample size or power estimate are returned as a list with supplementary info
 Approximates the power of equivalence and noninferiority tests for one sample. One can either find a sample size that achieves desired statistical power or estimate the power for a given sample size.
 }
 \examples{
-# specify targetPower to obtain sample sizes n
+# specify targetPower to obtain sample size n
 DesignOneSample(mu = -4, sigma = 15, deltaL = -19.2, deltaU = 19.2,
 targetPower = 0.8, alpha = 0.05, plot = TRUE, seed = 1, sobol = 0)
 
