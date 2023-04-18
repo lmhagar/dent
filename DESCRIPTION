@@ -3,7 +3,7 @@ Title: Design of Equivalence and Noninferiority Tests
 Version: 0.0.1
 Author: Luke Hagar [aut, cre], Nathaniel T. Stevens [aut]
 Maintainer: Luke Hagar <lmhagar@uwaterloo.ca>
-Description: Fast power and sample size calculations for equivalence and noninferiority tests facilitated via two and one one-sided t-tests, respectively. Accommodates balanced and imbalanced sample size determination for two groups of data with equal and unequal variances. Test with paired data and single samples are also supported. Parallel and crossover designs are accommodated, along with functionality to analyze data from these designs.
+Description: Fast power and sample size calculations for equivalence and noninferiority tests facilitated via two and one one-sided t-tests, respectively. Accommodates balanced and imbalanced sample size determination for two groups of data with equal and unequal variances. Tests with paired data and single samples are also supported. Parallel and crossover designs are accommodated, along with functionality to analyze data from these designs.
 Imports: 
     stats,
     qrng,
