@@ -447,7 +447,8 @@ DesignParallelUnequal <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, del
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -455,7 +456,9 @@ DesignParallelUnequal <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, del
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -564,23 +567,6 @@ print.power.en.test <- function(x, ...){
   } else {
     output_temp <- structure(x, class = "power.htest")
   }
-
-
-  # if (!(is.null(x$q))){
-  #   output_temp <- structure(list(n1 = x$n1, n2 = x$n2, q = x$q, diff = x$diff, sigma1 = x$sigma1, sigma2 = x$sigma2,
-  #                           sig.level = x$sig.level, power = x$power, bounds = x$bounds,
-  #                           note = x$note,
-  #                           method = x$method), class = "power.htest")
-  # } else if (!(is.null(x$note))) {
-  #   output_temp <- structure(list(n1 = x$n1, n2 = x$n2, diff = x$diff, sigma1 = x$sigma1, sigma2 = x$sigma2,
-  #                                 sig.level = x$sig.level, type.I.error = x$type.I.error, bounds = x$bounds,
-  #                                 note = x$note,
-  #                                 method = x$method), class = "power.htest")
-  # } else{
-  #   output_temp <- structure(list(n1 = x$n1, n2 = x$n2, diff = x$diff, sigma1 = x$sigma1, sigma2 = x$sigma2,
-  #                                 sig.level = x$sig.level, power = x$power, bounds = x$bounds,
-  #                                 method = x$method), class = "power.htest")
-  # }
 
   print(output_temp)
 }
@@ -915,7 +901,8 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -923,7 +910,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -1116,7 +1105,8 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -1124,7 +1114,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -1306,7 +1298,8 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -1314,7 +1307,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -1497,7 +1492,8 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -1505,7 +1501,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -1710,7 +1708,8 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -1718,7 +1717,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -1913,7 +1914,8 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -1921,7 +1923,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -2128,7 +2132,8 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -2136,7 +2141,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -2335,7 +2342,8 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -2343,7 +2351,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }
@@ -2539,7 +2549,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower),
+                              linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -2547,7 +2559,9 @@ UpdateTargetPower <- function(power.en.test = NULL, targetPower = NULL, plot = T
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
       print(plot_pwr)
     }

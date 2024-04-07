@@ -433,7 +433,8 @@ DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = 
                                                           margin= ggplot2::margin(0,0,10,0))) +
         ggplot2::theme(axis.title.x = ggplot2::element_text(size = 16, margin= ggplot2::margin(10,0,0,0))) +
         ggplot2::theme(axis.title.y = ggplot2::element_text(size = 16, margin= ggplot2::margin(0,10,0,0))) +
-        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = n_rough, y = 0, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower), linetype="dashed", color = "black")
 
       plot_min <- ggplot2::ggplot_build(plot_pwr)$layout$panel_params[[1]]$x$breaks[1]
       if (is.na(plot_min)){
@@ -441,7 +442,9 @@ DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = 
       }
 
       plot_pwr <- plot_pwr +
-        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower), linetype="dashed", color = "black")
+        ggplot2::geom_segment(ggplot2::aes(x = plot_min, y = targetPower, xend = n_rough, yend = targetPower),
+                              data = data.frame(n_rough = n_rough, targetPower = targetPower, plot_min = plot_min),
+                              linetype="dashed", color = "black")
 
     print(plot_pwr)
     }
