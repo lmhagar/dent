@@ -24,7 +24,8 @@
 #' DesignPairedSample(diff = -4, sigma1 = 15, sigma2 = 18, rho = 0.25, deltaL = -19.2,
 #' deltaU = 19.2, n = 17, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)
 #'
-#' @return The sample size or power estimate are returned as a list with supplementary information. If `targetPower` is specified to find sample size `n`, a plot of the approximated power curve will also appear in the plot pane if `plot = TRUE`. To confirm the sample size recommendation, power will be approximated at sample size `n - 1`. This power estimate should be *less* than `targetPower`. To find a sample size that corresponds to a different `targetPower`, save this function's output to an object and use the `UpdateTargetPower()` function.
+#' @return The sample size or power estimate are returned as a list with supplementary information.
+#' If `targetPower` is specified to find sample size `n`, a plot of the approximated power curve will also appear in the plot pane if `plot = TRUE`. To find a sample size that corresponds to a different `targetPower`, save this function's output to an object and use the `UpdateTargetPower()` function.
 #' @export
 DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = NULL,
                             deltaL = -Inf,deltaU = Inf, alpha = NULL, targetPower = NULL,
@@ -134,13 +135,27 @@ DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = 
       return(thres - sdv)
     }
 
-    uu <- function (fun, lower, upper, maxiter = 1000, tol = 1e-4, ...)
+    ## this is a leaner inplementation of uniroot in base R
+    uu <- function (fun, lower, upper, f_lower = NULL, f_upper = NULL, maxiter = 1000, tol = 1e-4, tol2 = 0.0005, ...)
     {
       f <- function(x) fun(x, ...)
       x1 <- lower
-      f1 <- f(x1)
+      if (!is.null(f_lower)){
+        f1 <- f_lower
+      }
+      else{
+        f1 <- f(x1)
+      }
+      if (f1 > 0){return(x1)}
       x2 <- upper
+      if (!is.null(f_upper)){
+        f2 <- f_upper
+      }
+      else{
+        f2 <- f(x2)
+      }
       f2 <- f(x2)
+      if (f2 < 0){return(x2)}
       x3 <- 0.5 * (lower + upper)
       niter <- 1
       while (niter <= maxiter) {
@@ -152,7 +167,7 @@ DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = 
         if (f1 * f3 < 0) {
           upper <- x3}
         else {lower <- x3}
-        if ((upper - lower) < tol * max(abs(upper), 1)) {
+        if ((upper - lower) < tol2 * max(abs(upper), 1)) {
           x0 <- 0.5 * (lower + upper)
           return(x0)
         }
@@ -179,7 +194,7 @@ DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = 
           f1 <- f3
         }
         niter <- niter + 1
-        if (abs(x - x3) < tol) {
+        if (abs(x - x3) < tol2) {
           x0 <- x
           return(x0)
         }
@@ -193,123 +208,223 @@ DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = 
     }
     sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
 
-    upper_val <- (stats::qnorm(alpha/2) - stats::qnorm(0.9999))^2*(2*sigma^2)/(min(abs(diff-deltaL), abs(diff-deltaU)))^2
-    endpoints0_vec <- NULL
-    endpoints1_vec <- NULL
-    endpoints2_vec <- NULL
-    endpoints3_vec <- NULL
-    for (i in 1:nrow(sob)){
-      endpoints0_vec[i] <- targetPowerfn(n_val = 2,
-                                         deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
-                                         u = sob[i,], alpha = alpha)
-      endpoints1_vec[i] <- targetPowerfn(n_val = ceiling(upper_val/3),
-                                         deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
-                                         u = sob[i,], alpha = alpha)
-      endpoints2_vec[i] <- targetPowerfn(n_val = ceiling(2*upper_val/3),
-                                         deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
-                                         u = sob[i,], alpha = alpha)
-      endpoints3_vec[i] <- targetPowerfn(n_val = ceiling(upper_val),
-                                         deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
-                                         u = sob[i,], alpha = alpha)
+    ## find starting point for root-finding algorithm using normal approximations
+    if (!is.finite(deltaU)){
+      mid_val <- ((stats::qnorm(targetPower) + stats::qnorm(1 - alpha))*sigma/(diff - deltaL))^2
+      upper_val <- ((stats::qnorm((3 +targetPower)/4) + stats::qnorm(1 - alpha))*sigma/(diff - deltaL))^2
     }
-
-    endpoints_cat <- ifelse(endpoints0_vec >= 0, 0,
-                            ifelse(endpoints1_vec >= 0, 1,
-                                   ifelse(endpoints2_vec >= 0, 2,
-                                          ifelse(endpoints3_vec >= 0, 3, 4))))
-
-    last_group <- which(endpoints_cat == 4)
-    if (length(last_group) == 0){
-      upper_c <- 2
+    else if (!is.finite(deltaL)){
+      mid_val <- ((stats::qnorm(targetPower) + stats::qnorm(1 - alpha))*sigma/(deltaU - diff))^2
+      upper_val <- ((stats::qnorm((3 +targetPower)/4) + stats::qnorm(1 - alpha))*sigma/(deltaU - diff))^2
     }
     else{
+      ## find starting point for root-finding algorithm using normal approximations to
+      ## the t-distribution
+      a_cons <- (deltaU - diff)/sigma
+      b_cons <- (deltaL - diff)/sigma
+      c_cons <- stats::qnorm(1-alpha)
+      ## lower bound for root-finding algorithm
+      lower_cons <- 2*c_cons*sigma/(deltaU - deltaL)
+      upper_cons <- lower_cons
+
+      fn_ci = function(n_sq, a, b, c, pwr){
+        return(stats::pnorm(a*n_sq - c) - stats::pnorm(b*n_sq + c) - pwr)}
+
+      upper_large <- FALSE
+      while(upper_large == FALSE){
+        upper_cons <- 10*upper_cons
+        upper_check <- fn_ci(n_sq = sqrt(upper_cons), a = a_cons, b = b_cons, c = c_cons, pwr = targetPower)
+        if (upper_check > 0){
+          upper_large <- TRUE
+        }
+      }
+
+      ## mid_val should be close to the final sample size
+      mid_val <- (uu(fn_ci, a = a_cons, b = b_cons, c = c_cons, pwr = targetPower,
+                     lower = lower_cons, upper = upper_cons))^2
+
+      upper_large <- FALSE
+      upper_cons <- mid_val
+      while(upper_large == FALSE){
+        upper_cons <- 10*upper_cons
+        upper_check <- fn_ci(n_sq = sqrt(upper_cons), a = a_cons, b = b_cons, c = c_cons, pwr = (3 + targetPower)/4)
+        if (upper_check > 0){
+          upper_large <- TRUE
+        }
+      }
+
+      upper_val <- (uu(fn_ci, a = a_cons, b = b_cons, c = c_cons, pwr = (3 + targetPower)/4,
+                       lower = sqrt(mid_val), upper = sqrt(upper_cons)))^2
+    }
+
+    ## upper_val and lower_val will be the next sample sizes explored by the root-finding algorithm
+    ## depending on whether the point corresponds to the rejection region at mid_val
+    mid_val <- max(mid_val, 10)
+    lower_val <- 0.5*mid_val
+
+    endpoints_vec <- rep(0, nrow(sob))
+    samps <- NULL
+    for (i in 1:nrow(sob)){
+      power1 <- targetPowerfn(n_val = ceiling(mid_val),
+                              deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
+                              u = sob[i,], alpha = alpha)
+      if (power1 >= 0){
+        power1b <- targetPowerfn(n_val = ceiling(lower_val),
+                                 deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
+                                 u = sob[i,], alpha = alpha)
+        if (power1b >= 0){
+          samps[i] <- uu(targetPowerfn, lower =2,
+                         upper = ceiling(lower_val), f_upper = power1b,
+                         deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
+                         u = sob[i,], alpha = alpha)
+        }
+        else{
+          samps[i] <- uu(targetPowerfn, lower = ceiling(lower_val), f_lower = power1b,
+                         upper = ceiling(mid_val), f_upper = power1,
+                         deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
+                         u = sob[i,], alpha = alpha)
+        }
+      }
+      else{
+        power2 <- targetPowerfn(n_val = ceiling(upper_val),
+                                deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
+                                u = sob[i,], alpha = alpha)
+        if (power2 >= 0){
+          samps[i] <- uu(targetPowerfn, lower = ceiling(mid_val), f_lower = power1,
+                         upper = ceiling(upper_val), f_upper = power2,
+                         deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
+                         u = sob[i,], alpha = alpha)
+        }
+        else{
+          endpoints_vec[i] <- 1
+        }
+      }
+    }
+
+    last_group <- which(endpoints_vec == 1)
+    if (length(last_group) == 0){
+      upper_c <- 2
+    } else{
       upper_c <- 1
       while(length(last_group) > 0){
+        if (upper_c > 32){
+          last_group <- NULL
+        }
         upper_c <- 2*upper_c
-        endpoints4_vec <- NULL
+        endpoints1_vec <- NULL
         for (i in 1:length(last_group)){
-          endpoints4_vec[i] <- targetPowerfn(n_val = ceiling(upper_c*upper_val),
+          endpoints1_vec[i] <- targetPowerfn(n_val = ceiling(upper_c*upper_val),
                                              deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
                                              u = sob[last_group[i],], alpha = alpha)
         }
-        keep_vec <- ifelse(endpoints4_vec >= 0, FALSE, TRUE)
+        keep_vec <- ifelse(endpoints1_vec >= 0, FALSE, TRUE)
+        ## only keep points that still do not satisfy power criterion after increasing
+        ## the upper bound for the sample size
         last_group <- last_group[keep_vec]
       }
     }
 
-    samps <- NULL
+    ## implement the root-finding algorithm for each point in the Sobol' sequence
+    ## that required a large upper bound (i.e., those in last_group)
     for (i in 1:nrow(sob)){
-      if (endpoints_cat[i] == 0){
-        samps[i] <- 2
-      }
-      else if (endpoints_cat[i] == 1){
-        samps[i] <- uu(targetPowerfn, lower =2,
-                       upper = ceiling(upper_val/3),
-                       deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
-                       u = sob[i,], alpha = alpha)
-      }
-      else if (endpoints_cat[i] == 2){
-        samps[i] <- uu(targetPowerfn, lower = ceiling(upper_val/3),
-                       upper = ceiling(2*upper_val/3),
-                       deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
-                       u = sob[i,], alpha = alpha)
-      }
-      else if (endpoints_cat[i] == 3){
-        samps[i] <- uu(targetPowerfn, lower = ceiling(2*upper_val/3),
-                       upper = ceiling(upper_val),
-                       deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
-                       u = sob[i,], alpha = alpha)
-      }
-      else{
+      if (endpoints_vec[i] == 1){
         samps[i] <- uu(targetPowerfn, lower = ceiling(upper_val),
                        upper = ceiling(upper_c*upper_val),
                        deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
                        u = sob[i,], alpha = alpha)
       }
     }
-    # plot(stats::ecdf(samps), main = "Estimated Power Curve", col = "blue")
+
+    n_rough <- stats::quantile(samps, targetPower)
+
+    pwrs <- NULL
+    n <- n_rough
+
+    n_temp <- n_rough
+
+    x <- stats::qchisq(sob[,1], n_temp - 1)
+    z <- stats::qnorm(sob[,2], diff, sigma*sqrt(1/n_temp))
+
+    sdv <- sqrt(x*sigma^2/(n_temp - 1))*sqrt(1/n_temp)
+
+    if (deltaU == Inf){
+      thresUp <- rep(Inf, length(z))
+    }
+    else{
+      thresUp <- (deltaU - z)/stats::qt(1-alpha, n_temp - 1)
+    }
+
+    if (deltaL == -Inf){
+      thresLow <- rep(Inf, length(z))
+    }
+    else{
+      thresLow <- (z - deltaL)/stats::qt(1-alpha, n_temp - 1)
+    }
+
+    thres <- pmin(thresUp, thresLow)
+
+    pwrs <- thres - sdv
+
+    consistency <- ifelse(samps < n_rough, round(pwrs,2) >= 0, round(pwrs,2) <= 0)
+    consistency <- ifelse(consistency == 1, 1, as.numeric(abs(pwrs) < 0.02))
+
+    ## for any points where the root-finding algorithm has caused issues,
+    ## re-run the root-finding algorithm starting at n_*
+    inconsistent <- which(consistency == 0)
+    if (length(inconsistent) > 0){
+      for (i in 1:length(inconsistent)){
+        if (pwrs[inconsistent[i]] < 0){
+          samps[inconsistent[i]] <- uu(targetPowerfn, lower = n_rough, upper = ceiling(upper_c*upper_val),
+                                       f_lower = pwrs[inconsistent[i]],
+                                       deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
+                                       u = sob[inconsistent[i],], alpha = alpha)
+        }
+        else{
+          samps[inconsistent[i]] <- uu(targetPowerfn, lower = 2, upper = n_rough,
+                                       f_upper = pwrs[inconsistent[i]],
+                                       deltaL = deltaL, deltaU = deltaU, diff = diff, sigma = sigma,
+                                       u = sob[inconsistent[i],], alpha = alpha)
+        }
+      }
+    }
     funecdf <- stats::ecdf(samps)
 
     ecdf_root <- function(quant, pwr){return(funecdf(quant) - pwr)}
     n_rough <- uu(ecdf_root, lower = stats::quantile(samps, targetPower*0.5), upper = stats::quantile(samps, targetPower + 0.5*(1 - targetPower)),
                   pwr = targetPower)
 
-    pwrs <- NULL
-    n <- c(ceiling(n_rough)-1, ceiling(n_rough))
+    ## get confirmatory power estimate for output
+    n_temp <- ceiling(n_rough)
 
-    for (j in 1:length(n)){
-      n_temp <- n[j];
+    x <- stats::qchisq(sob[,1], n_temp - 1)
+    z <- stats::qnorm(sob[,2], diff, sigma*sqrt(1/n_temp))
 
-      x <- stats::qchisq(sob[,1], n_temp - 1)
-      z <- stats::qnorm(sob[,2], diff, sigma*sqrt(1/n_temp))
+    sdv <- sqrt(x*sigma^2/(n_temp - 1))*sqrt(1/n_temp)
 
-      sdv <- sqrt(x*sigma^2/(n_temp - 1))*sqrt(1/n_temp)
-
-      if (deltaU == Inf){
-        thresUp <- rep(Inf, length(z))
-      }
-      else{
-        thresUp <- (deltaU - z)/stats::qt(1-alpha, n_temp - 1)
-      }
-
-      if (deltaL == -Inf){
-        thresLow <- rep(Inf, length(z))
-      }
-      else{
-        thresLow <- (z - deltaL)/stats::qt(1-alpha, n_temp - 1)
-      }
-
-      thres <- pmin(thresUp, thresLow)
-
-      pwrs <- c(pwrs, mean(ifelse(sdv <= thres,1,0)))
+    if (deltaU == Inf){
+      thresUp <- rep(Inf, length(z))
     }
+    else{
+      thresUp <- (deltaU - z)/stats::qt(1-alpha, n_temp - 1)
+    }
+
+    if (deltaL == -Inf){
+      thresLow <- rep(Inf, length(z))
+    }
+    else{
+      thresLow <- (z - deltaL)/stats::qt(1-alpha, n_temp - 1)
+    }
+
+    thres <- pmin(thresUp, thresLow)
+
+    pwrs <- thres - sdv
 
     df_samps <- data.frame(n_plot = samps)
 
     n_plot <- NULL
     if (plot == TRUE){
-      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) +
-        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], size = 2) +
+      plot_pwr <- ggplot2::ggplot(df_samps, ggplot2::aes(x = n_plot)) + ggplot2::theme_bw() +
+        ggplot2::stat_ecdf(geom = "step", pad = FALSE, colour = cbbPalette[6], linewidth = 2) +
         ggplot2::theme(axis.text.y = ggplot2::element_text(size = 13)) +
         ggplot2::theme(axis.text.x =  ggplot2::element_text(size = 13)) +
         ggplot2::labs(title = "Approximated Power Curve") +
@@ -338,12 +453,9 @@ DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = 
                      b = "Noninferiority test power calculation (for Group 2)",
                      c = "Noninferiority test power calculation (for Group 1)")
 
-    NOTE <- paste0("As a check, power was estimated to be ", pwrs[1], " for n = ", n[1],".",
-                   "\n", "n is the number of pairs and sigma is the sd of the paired differences.")
-
-    results <- structure(list(n = n[2], diff = diff, sigma = sigma,
-                              sig.level = alpha, power = pwrs[2], bounds = c(deltaL, deltaU),
-                              note = NOTE,
+    results <- structure(list(n = n_temp, diff = diff, sigma = sigma,
+                              sig.level = alpha, power = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
+                              upper.bound = ceiling(upper_c*upper_val),
                               method = METHOD,
                               samps = samps, seed = seed, sobol = sobol, design = "PairedSample"), class = "power.en.test")
     return(results)
@@ -387,7 +499,7 @@ DesignPairedSample <- function(diff = NULL, sigma1 = NULL, sigma2 = NULL, rho = 
                      c = "Noninferiority test power calculation (for Group 1)")
 
     if(diff >= deltaU | diff <= deltaL){
-      NOTE <- paste0("diff is not in (deltaL, deltaU), so we compute type I error rate.",
+      NOTE <- paste0("diff is not in (deltaL, deltaU), so we compute the type I error rate.",
                      "\n", "n is the number of pairs and sigma is the sd of the paired differences.")
 
       results <- structure(list(n = n, diff = diff, sigma = sigma,

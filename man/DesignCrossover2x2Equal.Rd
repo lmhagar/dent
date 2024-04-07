@@ -45,7 +45,7 @@ DesignCrossover2x2Equal(
 \item{sobol}{one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using \code{targetPower} and \code{q}, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for given sample sizes \code{n1} and \code{n2}, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.}
 }
 \value{
-The sample sizes or power estimate are returned as a list with supplementary information. If \code{targetPower} and \code{q} are specified to find sample sizes \code{n1} and \code{n2}, a plot of the approximated power curve will also appear in the plot pane if \code{plot = TRUE}. To confirm the sample size recommendation, power will be approximated at sample sizes \code{n1 - 1} and \code{max(2, round(q(n1 - 1)))}. This power estimate should be \emph{less} than \code{targetPower}; if not, the choice for \code{q} may be suboptimal in that it may be possible to collect fewer observations in one of the two groups and still achieve the desired study power. To find a sample size that corresponds to a different \code{targetPower}, save this function's output to an object and use the \code{UpdateTargetPower()} function.
+The sample sizes or power estimate are returned as a list with supplementary information. If \code{targetPower} and \code{q} are specified to find sample sizes \code{n1} and \code{n2}, a plot of the approximated power curve will also appear in the plot pane if \code{plot = TRUE}. To find a sample size that corresponds to a different \code{targetPower}, save this function's output to an object and use the \code{UpdateTargetPower()} function.
 }
 \description{
 Approximates the power of equivalence and noninferiority tests for two-sequence, two-period crossover designs with equal variances. One can either find sample sizes that achieve desired statistical power or estimate the power for given sample sizes. More information about the notation and terminology for \code{diff} and \code{sigma} is provided in Chapter 10 of Chow et al. (2008).
@@ -63,5 +63,5 @@ n1 = 18, n2 = 18, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)
 \references{
 Chow, S. C., J. Shao, and H. Wang. (2008). \emph{Sample size calculations in clinical research}. Chapman and Hall/CRC.
 
-Hofert, M. and C. Lemieux. (2020). \emph{qrng: (Randomized) Quasi-Random Number Generators}. R package version 0.0-8.
+Hofert, M. and C. Lemieux. (2020). \emph{qrng: (Randomized) Quasi-Random Number Generators}. R package version 0.0-10.
 }

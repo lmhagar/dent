@@ -92,7 +92,7 @@ test_that("working example 3",{
 
 test_that("working example equal 1",{
   expect_equal(round(DesignParallelEqual(diff = -4, sigma = 15, q = 1, deltaL = -19.2, deltaU = 19.2,
-                                           targetPower = 0.8, alpha = 0.05, seed = 1, sobol = 0)$power,4), 0.8242)
+                                         targetPower = 0.8, alpha = 0.05, seed = 1, sobol = 0)$power,4), 0.8242)
 })
 
 test_that("working example equal 2",{
@@ -167,7 +167,7 @@ test_that("working example crossover 2x2 unequal 3",{
 
 test_that("working example crossover 2x2 equal 1",{
   expect_equal(round(DesignCrossover2x2Equal(diff = 0.05, sigma = 0.4, deltaL = -0.223,
-                                             deltaU = 0.223, targetPower = 0.8, q = 1.5, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)$power,4), 0.8027)
+                                             deltaU = 0.223, targetPower = 0.8, q = 1.5, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)$power,4), 0.8115)
 })
 
 test_that("working example crossover 2x2 equal 2",{
@@ -197,7 +197,7 @@ test_that("working example crossover dual unequal 3",{
 
 test_that("working example crossover dual equal 1",{
   expect_equal(round(DesignCrossoverDualEqual(diff = 0.05, sigma = sqrt(3)*0.25, compSymm = FALSE, deltaL = -0.223,
-                                              deltaU = 0.223, targetPower = 0.8, q = (2/3), alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)$power,4), 0.8086)
+                                              deltaU = 0.223, targetPower = 0.8, q = (2/3), alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)$power,4), 0.8379)
 })
 
 test_that("working example crossover dual equal 2",{
@@ -224,3 +224,4 @@ test_that("working example crossover dual equal 6",{
   expect_equal(round(DesignCrossoverDualEqual(diff = 0.223, sigma = sqrt(3)*0.25, compSymm = TRUE, deltaL = -0.223,
                                               deltaU = 0.223, n1 = 15, n2 = 10, alpha = 0.05, plot = FALSE, seed = 2, sobol = 0)$type.I.error,4), 0.0501)
 })
+
