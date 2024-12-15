@@ -23,7 +23,7 @@ Performs sample size calculations for equivalence and noninferiority tests using
 # save output from `Design...()` function call with previous `targetPower` specification
 # to object `design.result`.
 design.result <- DesignParallelUnequal(diff = -4, sigma1 = 15, sigma2 = 18, deltaL = -19.2,
-                 deltaU = 19.2, alpha = 0.05, targetPower = 0.8, q = 1, seed = 1, sobol = 0)
+                 deltaU = 19.2, alpha = 0.05, targetPower = 0.8, q = 1, seed = 1)
 
 UpdateTargetPower(power.en.test = design.result, targetPower = 0.7, plot = TRUE)
 

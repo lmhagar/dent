@@ -14,34 +14,34 @@ test_that("working example design parallel unequal",{
   expect_equal(round(UpdateTargetPower(DesignParallelUnequal(diff = -4, sigma1 = 15, sigma2 = 18, deltaL = -19.2,
                                                              deltaU = 19.2, alpha = 0.05, targetPower = 0.8, q = 1,
                                                              seed = 1, sobol = 0, plot = FALSE),
-                                       targetPower = 0.7, plot = FALSE)$power,4), 0.7334)
+                                       targetPower = 0.7, plot = FALSE)$power,4), 0.7324)
 })
 
 test_that("working example design parallel equal",{
   expect_equal(round(UpdateTargetPower(DesignParallelEqual(diff = -4, sigma = 15, deltaL = -19.2,
                                                            deltaU = 19.2, alpha = 0.05, targetPower = 0.8, q = 1,
                                                            seed = 1, sobol = 0, plot = FALSE),
-                                       targetPower = 0.9, plot = FALSE)$power,4), 0.9092)
+                                       targetPower = 0.9, plot = FALSE)$power,4), 0.9062)
 })
 
 test_that("working example design one sample",{
   expect_equal(round(UpdateTargetPower(DesignOneSample(mu = -4, sigma = 15, deltaL = -19.2,
                                                        alpha = 0.05, targetPower = 0.8, seed = 1,
                                                        sobol = 0, plot = FALSE),
-                                       targetPower = 0.75, plot = FALSE)$power,4), 0.7637)
+                                       targetPower = 0.75, plot = FALSE)$power,4), 0.7686)
 })
 
 test_that("working example design paired sample",{
   expect_equal(round(UpdateTargetPower(DesignPairedSample(diff = -4, sigma1 = 15, sigma2 = 18, rho = 0.25, deltaL = -19.2,
                                                           deltaU = 19.2, targetPower = 0.8, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0),
-                                       targetPower = 0.6, plot = FALSE)$power,4), 0.6611)
+                                       targetPower = 0.6, plot = FALSE)$power,4), 0.5996)
 })
 
 test_that("working example design 2x2 crossover unequal",{
   expect_equal(round(UpdateTargetPower(DesignCrossover2x2Unequal(diff = 0.05, sigma1 = 0.4, sigma2 = 0.3, deltaL = -0.223,
                                                                  deltaU = 0.223, alpha = 0.05, targetPower = 0.8, q = 1,
                                                                  seed = 1, sobol = 0, plot = FALSE),
-                                       targetPower = 0.7, plot = FALSE)$power,4), 0.7178)
+                                       targetPower = 0.7, plot = FALSE)$power,4), 0.7227)
 })
 
 test_that("working example design 2x2 crossover equal",{
@@ -55,19 +55,19 @@ test_that("working example design dual crossover unequal",{
   expect_equal(round(UpdateTargetPower(DesignCrossoverDualUnequal(diff = 0.05, sigma1 = sqrt(3)*0.25, sigma2 = sqrt(3)*0.2, deltaL = -0.223,
                                                                   deltaU = 0.223, alpha = 0.05, targetPower = 0.8, q = 1,
                                                                   seed = 1, sobol = 0, plot = FALSE),
-                                       targetPower = 0.7, plot = FALSE)$power,4), 0.7412)
+                                       targetPower = 0.7, plot = FALSE)$power,4), 0.7422)
 })
 
 test_that("working example design dual crossover equal noCompSymm",{
   expect_equal(round(UpdateTargetPower(DesignCrossoverDualEqual(diff = 0.05, sigma = sqrt(3)*0.25, deltaL = -0.223, compSymm = FALSE,
                                                                 deltaU = 0.223, alpha = 0.05, targetPower = 0.8, q = 1, seed = 1,
                                                                 sobol = 0, plot = FALSE),
-                                       targetPower = 0.9, plot = FALSE)$power,4), 0.9131)
+                                       targetPower = 0.9, plot = FALSE)$power,4), 0.9141)
 })
 
 test_that("working example design dual crossover equal CompSymm",{
   expect_equal(round(UpdateTargetPower(DesignCrossoverDualEqual(diff = 0.05, sigma = sqrt(3)*0.25, compSymm = TRUE,
                                                                 deltaU = 0.223, alpha = 0.05, targetPower = 0.8, q = 1,
                                                                 seed = 1, sobol = 0, plot = FALSE),
-                                       targetPower = 0.95, plot = FALSE)$power,4), 0.9590)
+                                       targetPower = 0.95, plot = FALSE)$power,4), 0.9580)
 })

@@ -14,6 +14,7 @@ DesignOneSample(
   n = NULL,
   plot = TRUE,
   seed = NULL,
+  copies = 8,
   sobol = 0
 )
 }
@@ -34,9 +35,11 @@ DesignOneSample(
 
 \item{plot}{a logical variable indicating whether to return a plot of the power curve. If \code{n} is specified instead of \code{targetPower}, this variable is automatically set to \code{FALSE}. If you wish to approximate many power curves, suppressing the plots will expedite this process.}
 
-\item{seed}{if provided, a single positive integer is used to ensure reproducibility when randomizing the Sobol' sequence via \code{sobol()} in the \code{qrng} package.}
+\item{seed}{if provided, a single positive integer is used to ensure reproducibility when randomizing Sobol' sequences via \code{sobol()} in the \code{qrng} package.}
 
-\item{sobol}{one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using \code{targetPower}, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for a given sample size \code{n}, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds.  As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.}
+\item{copies}{an integer between 4 and 10 (inclusive) denoting how many independent copies of the Sobol' sequence are used to construct confidence intervals for power. The default value is 8.}
+
+\item{sobol}{an integer \eqn{s} between 0 and 4 (inclusive). When approximating the power curve using \code{targetPower}, \eqn{\texttt{copies} \times 2^{s + 7}} simulation repetitions are used. When estimating power for given a samples size \code{n}, \eqn{\texttt{copies} \times 2^{s + 13}} simulation repetitions are used. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, function calls should still take less than 30 seconds when \eqn{s = 4}.}
 }
 \value{
 The sample size or power estimate are returned as a list with supplementary information.
@@ -48,10 +51,10 @@ Approximates the power of equivalence and noninferiority tests for one sample. O
 \examples{
 # specify targetPower to obtain sample size n
 DesignOneSample(mu = -4, sigma = 15, deltaL = -19.2, deltaU = 19.2,
-targetPower = 0.8, alpha = 0.05, plot = TRUE, seed = 1, sobol = 0)
+targetPower = 0.8, alpha = 0.05, plot = TRUE, seed = 1)
 
 # specify n to estimate power for this design
 DesignOneSample(mu = -4, sigma = 15, deltaL = -19.2, deltaU = 19.2,
-n = 17, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)
+n = 17, alpha = 0.05, plot = FALSE, seed = 1)
 
 }

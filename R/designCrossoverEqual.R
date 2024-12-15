@@ -12,17 +12,18 @@
 #' @param n1 the sample size for group 1. This is the number of subjects assigned to the first sequence and must be a single integer such that \eqn{n_{1} \ge 2}. Exactly one of the following pairs must be specified: `targetPower` and `q` or `n1` and `n2`. Specify both `n1` and `n2` to estimate statistical power for these sample sizes.
 #' @param n2 the sample size for group 2. This is the number of subjects assigned to the first sequence and must be a single integer such that \eqn{n_{2} \ge 2}.
 #' @param plot a logical variable indicating whether to return a plot of the power curve. If `n1` and `n2` are specified instead of `q` and `targetPower`, this variable is automatically set to `FALSE`. If you wish to approximate many power curves, suppressing the plots will expedite this process.
-#' @param seed if provided, a single positive integer is used to ensure reproducibility when randomizing the Sobol' sequence via `sobol()` in the `qrng` package (Hofert and Lemieux, 2020).
-#' @param sobol one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using `targetPower` and `q`, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for given sample sizes `n1` and `n2`, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.
+#' @param seed if provided, a single positive integer is used to ensure reproducibility when randomizing Sobol' sequences via `sobol()` in the `qrng` package (Hofert and Lemieux, 2020).
+#' @param copies an integer between 4 and 10 (inclusive) denoting how many independent copies of the Sobol' sequence are used to construct confidence intervals for power. The default value is 8.
+#' @param sobol an integer \eqn{s} between 0 and 4 (inclusive). When approximating the power curve using `targetPower` and `q`, \eqn{\texttt{copies} \times 2^{s + 7}} simulation repetitions are used. When estimating power for given samples sizes `n1` and `n2`, \eqn{\texttt{copies} \times 2^{s + 13}} simulation repetitions are used. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, function calls should still take less than 30 seconds when \eqn{s = 4}.
 #'
 #' @examples
 #' # specify targetPower and q to obtain sample sizes n1 and n2
 #' DesignCrossover2x2Equal(diff = 0.05, sigma = 0.4, deltaL = -0.223, deltaU = 0.223,
-#' targetPower = 0.8, q = 1, alpha = 0.05, plot = TRUE, seed = 1, sobol = 0)
+#' targetPower = 0.8, q = 1, alpha = 0.05, plot = TRUE, seed = 1)
 #'
 #' # specify n1 and n2 to estimate power for this design
 #' DesignCrossover2x2Equal(diff = 0.05, sigma = 0.4, deltaL = -0.223, deltaU = 0.223,
-#' n1 = 18, n2 = 18, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)
+#' n1 = 18, n2 = 18, alpha = 0.05, plot = FALSE, seed = 1)
 #'
 #' @references
 #' Chow, S. C., J. Shao, and H. Wang. (2008). *Sample size calculations in clinical research*. Chapman and Hall/CRC.
@@ -33,7 +34,7 @@
 #' @export
 DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
                                   deltaU = Inf, alpha = NULL, targetPower = NULL, q = 1, n1 = NULL,
-                                  n2 = NULL, plot = TRUE, seed = NULL, sobol = 0){
+                                  n2 = NULL, plot = TRUE, seed = NULL, copies = 8, sobol = 0){
 
   cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
@@ -107,6 +108,12 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
     stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
   else if (!(sobol %in% c(0,1,2,3,4))){
     stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+  if(!is.numeric(copies) | length(copies) != 1) {
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
+  else if (copies < 0){
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
+  else if (!(copies %in% seq(4, 10, 1))){
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
 
   if (length(plot) != 1 | !(plot %in% c(TRUE, FALSE))){
     stop("Please provide valid logical input for plot.")
@@ -211,7 +218,11 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
     if (is.null(seed)){
       seed <- ceiling(1000*stats::runif(1))
     }
-    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+    sob <- NULL
+    for (i in 1:copies){
+      sob <- rbind(sob,
+                   qrng::sobol(2^(sobol + 7), d = 2, randomize = "digital.shift", seed = seed + i - 1))
+    }
 
 
     ## find starting point for root-finding algorithm using normal approximations
@@ -427,6 +438,12 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
 
     pwrs <- thres - sdv
 
+    pwr_copies <- NULL
+    pwr_list <- split(pwrs, rep(1:copies, each = length(pwrs)/copies))
+    for (i in 1:copies){
+      pwr_copies[i] <- mean(pwr_list[[i]] > 0)
+    }
+
     df_samps <- data.frame(n_plot = samps)
 
     n_plot <- NULL
@@ -464,13 +481,16 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
                      b = "Noninferiority test power calculation (for Group 2)",
                      c = "Noninferiority test power calculation (for Group 1)")
 
+    CI <- rbind(mean(pwrs >= 0) + c(-1,1)*stats::qnorm(0.975)*stats::sd(pwr_copies)/sqrt(length(pwr_copies)))
+
     NOTE <- paste0("n1 and n2 are the # of subjects in sequences 1 and 2, and sigma denotes intra-subject sd.")
 
     results <- structure(list(n1 = n1_temp, n2 = n2_temp, q = q, diff = diff, sigma = 2*sigma,
                               sig.level = alpha, power = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                               note = NOTE,
                               method = METHOD, upper.bound = ceiling(upper_c*upper_val),
-                              samps = samps, seed = seed, sobol = sobol, design = "Crossover2x2Equal"), class = "power.en.test")
+                              samps = samps, seed = seed, sobol = sobol, copies = copies,
+                              design = "Crossover2x2Equal", CI = CI), class = "power.en.test")
     return(results)
   }
 
@@ -478,7 +498,11 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
     if (is.null(seed)){
       seed <- ceiling(1000*stats::runif(1))
     }
-    sob <- qrng::sobol(2^(sobol+16), d = 2, randomize = "digital.shift", seed = seed)
+    sob <- NULL
+    for (i in 1:copies){
+      sob <- rbind(sob,
+                   qrng::sobol(2^(sobol + 13), d = 2, randomize = "digital.shift", seed = seed + i - 1))
+    }
 
     ## generate two sds and one mean
     x <- stats::qchisq(sob[,1], n1 + n2 - 2)
@@ -502,7 +526,15 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
 
     thres <- pmin(thresUp, thresLow)
 
-    pwrs <- mean(ifelse(sdv <= thres,1,0))
+    pwrs <- thres - sdv
+
+    pwr_copies <- NULL
+    pwr_list <- split(pwrs, rep(1:copies, each = length(pwrs)/copies))
+    for (i in 1:copies){
+      pwr_copies[i] <- mean(pwr_list[[i]] > 0)
+    }
+
+    CI <- rbind(mean(pwrs >= 0) + c(-1,1)*stats::qnorm(0.975)*stats::sd(pwr_copies)/sqrt(length(pwr_copies)))
 
     type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
                    ifelse(!is.finite(deltaL), "b", "c"))
@@ -521,16 +553,16 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
                      "\n", "n1 and n2 are the # of subjects in sequences 1 and 2, and sigma denotes intra-subject sd.")
 
       results <- structure(list(n1 = n1, n2 = n2, diff = diff, sigma = 2*sigma,
-                                sig.level = alpha, type.I.error = pwrs, bounds = c(deltaL, deltaU),
+                                sig.level = alpha, type.I.error = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                                 note = NOTE,
-                                method = METHOD), class = "power.en.test")
+                                method = METHOD, CI = CI), class = "power.en.test")
     }
     else{
       NOTE <- "n1 and n2 are the number of subjects assigned to sequences 1 and 2."
       results <- structure(list(n1 = n1, n2 = n2, diff = diff, sigma = 2*sigma,
-                                sig.level = alpha, power = pwrs, bounds = c(deltaL, deltaU),
+                                sig.level = alpha, power = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                                 note = NOTE,
-                                method = METHOD), class = "power.en.test")
+                                method = METHOD, CI = CI), class = "power.en.test")
     }
 
     return(results)
@@ -552,17 +584,18 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
 #' @param n1 the sample size for group 1. This is the number of subjects assigned to the first sequence and must be a single integer such that \eqn{n_{1} \ge 2}. Exactly one of the following pairs must be specified: `targetPower` and `q` or `n1` and `n2`. Specify both `n1` and `n2` to estimate statistical power for these sample sizes.
 #' @param n2 the sample size for group 2. This is the number of subjects assigned to the first sequence and must be a single integer such that \eqn{n_{2} \ge 2}.
 #' @param plot a logical variable indicating whether to return a plot of the power curve. If `n1` and `n2` are specified instead of `q` and `targetPower`, this variable is automatically set to `FALSE`. If you wish to approximate many power curves, suppressing the plots will expedite this process.
-#' @param seed if provided, a single positive integer is used to ensure reproducibility when randomizing the Sobol' sequence via `sobol()` in the `qrng` package (Hofert and Lemieux, 2020).
-#' @param sobol one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using `targetPower` and `q`, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for given sample sizes `n1` and `n2`, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.
+#' @param seed if provided, a single positive integer is used to ensure reproducibility when randomizing Sobol' sequences via `sobol()` in the `qrng` package.
+#' @param copies an integer between 4 and 10 (inclusive) denoting how many independent copies of the Sobol' sequence are used to construct confidence intervals for power. The default value is 8.
+#' @param sobol an integer \eqn{s} between 0 and 4 (inclusive). When approximating the power curve using `targetPower` and `q`, \eqn{\texttt{copies} \times 2^{s + 7}} simulation repetitions are used. When estimating power for given samples sizes `n1` and `n2`, \eqn{\texttt{copies} \times 2^{s + 13}} simulation repetitions are used. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, function calls should still take less than 30 seconds when \eqn{s = 4}.
 #'
 #' @examples
 #' # specify targetPower and q to obtain sample sizes n1 and n2
 #' DesignCrossoverDualEqual(diff = 0.05, sigma = 0.5, compSymm = TRUE, deltaL = -0.223,
-#' deltaU = 0.223, targetPower = 0.8, q = 1, alpha = 0.05, plot = TRUE, seed = 1, sobol = 0)
+#' deltaU = 0.223, targetPower = 0.8, q = 1, alpha = 0.05, plot = TRUE, seed = 1)
 #'
 #' # specify n1 and n2 to estimate power for this design
 #' DesignCrossoverDualEqual(diff = 0.05, sigma = 0.5, compSymm = FALSE, deltaL = -0.223,
-#' deltaU = 0.223, n1 = 18, n2 = 18, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)
+#' deltaU = 0.223, n1 = 18, n2 = 18, alpha = 0.05, plot = FALSE, seed = 1)
 #'
 #' @references
 #' Chow, S. C. and J.P. Liu. (2008). *Design and analysis of bioavailability and bioequivalence studies*. Chapman and Hall/CRC.
@@ -571,7 +604,7 @@ DesignCrossover2x2Equal <- function(diff = NULL, sigma = NULL, deltaL = -Inf,
 #' @export
 DesignCrossoverDualEqual <- function(diff = NULL, sigma = NULL, compSymm = TRUE, deltaL = -Inf,
                                     deltaU = Inf, alpha = NULL, targetPower = NULL, q = 1, n1 = NULL,
-                                    n2 = NULL, plot = TRUE, seed = NULL, sobol = 0){
+                                    n2 = NULL, plot = TRUE, seed = NULL, copies = 8, sobol = 0){
 
   cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
@@ -645,6 +678,12 @@ DesignCrossoverDualEqual <- function(diff = NULL, sigma = NULL, compSymm = TRUE,
     stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
   else if (!(sobol %in% c(0,1,2,3,4))){
     stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+  if(!is.numeric(copies) | length(copies) != 1) {
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
+  else if (copies < 0){
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
+  else if (!(copies %in% seq(4, 10, 1))){
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
 
   if (length(plot) != 1 | !(plot %in% c(TRUE, FALSE))){
     stop("Please provide valid logical input for plot.")
@@ -754,7 +793,11 @@ DesignCrossoverDualEqual <- function(diff = NULL, sigma = NULL, compSymm = TRUE,
     if (is.null(seed)){
       seed <- ceiling(1000*stats::runif(1))
     }
-    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+    sob <- NULL
+    for (i in 1:copies){
+      sob <- rbind(sob,
+                   qrng::sobol(2^(sobol + 7), d = 2, randomize = "digital.shift", seed = seed + i - 1))
+    }
 
 
     ## find starting point for root-finding algorithm using normal approximations
@@ -972,6 +1015,12 @@ DesignCrossoverDualEqual <- function(diff = NULL, sigma = NULL, compSymm = TRUE,
 
     pwrs <- thres - sdv
 
+    pwr_copies <- NULL
+    pwr_list <- split(pwrs, rep(1:copies, each = length(pwrs)/copies))
+    for (i in 1:copies){
+      pwr_copies[i] <- mean(pwr_list[[i]] > 0)
+    }
+
     df_samps <- data.frame(n_plot = samps)
 
     n_plot <- NULL
@@ -1011,19 +1060,23 @@ DesignCrossoverDualEqual <- function(diff = NULL, sigma = NULL, compSymm = TRUE,
 
     NOTE <- paste0("n1 and n2 are the # of subjects in sequences 1 and 2, and sigma denotes intra-subject sd.")
 
+    CI <- rbind(mean(pwrs >= 0) + c(-1,1)*stats::qnorm(0.975)*stats::sd(pwr_copies)/sqrt(length(pwr_copies)))
+
     if (compSymm){
       results <- structure(list(n1 = n1_temp, n2 = n2_temp, q = q, diff = diff, sigma = sqrt(8)*sigma,
                               sig.level = alpha, power = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                               note = NOTE,
                               method = METHOD, upper.bound = ceiling(upper_c*upper_val),
-                              samps = samps, seed = seed, sobol = sobol, design = "CrossoverDualEqualComp"), class = "power.en.test")
+                              samps = samps, seed = seed, sobol = sobol, copies = copies,
+                              design = "CrossoverDualEqualComp", CI = CI), class = "power.en.test")
     } else {
 
       results <- structure(list(n1 = n1_temp, n2 = n2_temp, q = q, diff = diff, sigma = sqrt(8)*sigma,
                               sig.level = alpha, power = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                               note = NOTE,
                               method = METHOD, upper.bound = ceiling(upper_c*upper_val),
-                              samps = samps, seed = seed, sobol = sobol, design = "CrossoverDualEqualNoComp"), class = "power.en.test")
+                              samps = samps, seed = seed, sobol = sobol, copies = copies,
+                              design = "CrossoverDualEqualNoComp", CI = CI), class = "power.en.test")
     }
     return(results)
   }
@@ -1032,7 +1085,11 @@ DesignCrossoverDualEqual <- function(diff = NULL, sigma = NULL, compSymm = TRUE,
     if (is.null(seed)){
       seed <- ceiling(1000*stats::runif(1))
     }
-    sob <- qrng::sobol(2^(sobol+16), d = 2, randomize = "digital.shift", seed = seed)
+    sob <- NULL
+    for (i in 1:copies){
+      sob <- rbind(sob,
+                   qrng::sobol(2^(sobol + 13), d = 2, randomize = "digital.shift", seed = seed + i - 1))
+    }
 
     ## generate two sds and one mean
     df_check <- ifelse(compSymm, 2*(n1 + n2 - 2), n1 + n2 - 2)
@@ -1057,7 +1114,15 @@ DesignCrossoverDualEqual <- function(diff = NULL, sigma = NULL, compSymm = TRUE,
 
     thres <- pmin(thresUp, thresLow)
 
-    pwrs <- mean(ifelse(sdv <= thres,1,0))
+    pwrs <- thres - sdv
+
+    pwr_copies <- NULL
+    pwr_list <- split(pwrs, rep(1:copies, each = length(pwrs)/copies))
+    for (i in 1:copies){
+      pwr_copies[i] <- mean(pwr_list[[i]] > 0)
+    }
+
+    CI <- rbind(mean(pwrs >= 0) + c(-1,1)*stats::qnorm(0.975)*stats::sd(pwr_copies)/sqrt(length(pwr_copies)))
 
     type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
                    ifelse(!is.finite(deltaL), "b", "c"))
@@ -1076,16 +1141,16 @@ DesignCrossoverDualEqual <- function(diff = NULL, sigma = NULL, compSymm = TRUE,
                      "\n", "n1 and n2 are the # of subjects in sequences 1 and 2, and sigma denotes intra-subject sd.")
 
       results <- structure(list(n1 = n1, n2 = n2, diff = diff, sigma = sqrt(8)*sigma,
-                                sig.level = alpha, type.I.error = pwrs, bounds = c(deltaL, deltaU),
+                                sig.level = alpha, type.I.error = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                                 note = NOTE,
-                                method = METHOD), class = "power.en.test")
+                                method = METHOD, CI = CI), class = "power.en.test")
     }
     else{
       NOTE <- "n1 and n2 are the number of subjects assigned to sequences 1 and 2."
       results <- structure(list(n1 = n1, n2 = n2, diff = diff, sigma = sqrt(8)*sigma,
-                                sig.level = alpha, power = pwrs, bounds = c(deltaL, deltaU),
+                                sig.level = alpha, power = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                                 note = NOTE,
-                                method = METHOD), class = "power.en.test")
+                                method = METHOD, CI = CI), class = "power.en.test")
     }
 
     return(results)

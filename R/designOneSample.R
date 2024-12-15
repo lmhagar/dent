@@ -10,24 +10,25 @@
 #' @param targetPower the desired statistical power of the equivalence or noninferiority test, must be a single number between 0 and 1 (exclusive). Exactly one of the following inputs must be specified: `targetPower` or `n`. Specify `targetPower` to find a sample size `n` that yields desired power.
 #' @param n the sample size, must be a single integer such that \eqn{n \ge 2}. Exactly one of the following inputs must be specified: `targetPower` or `n`. Specify `n` to estimate statistical power for this sample size.
 #' @param plot a logical variable indicating whether to return a plot of the power curve. If `n` is specified instead of `targetPower`, this variable is automatically set to `FALSE`. If you wish to approximate many power curves, suppressing the plots will expedite this process.
-#' @param seed if provided, a single positive integer is used to ensure reproducibility when randomizing the Sobol' sequence via `sobol()` in the `qrng` package.
-#' @param sobol one of the following integers: \eqn{s \in \{0, 1, 2, 3, 4 \}}. When approximating the power curve using `targetPower`, \eqn{2^{s + 10}} points are generated from the Sobol' sequence. When estimating power for a given sample size `n`, \eqn{2^{s + 16}} points are generated from the Sobol' sequence. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds.  As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, all function calls should still take less than 30 seconds when \eqn{s = 4}.
+#' @param seed if provided, a single positive integer is used to ensure reproducibility when randomizing Sobol' sequences via `sobol()` in the `qrng` package.
+#' @param copies an integer between 4 and 10 (inclusive) denoting how many independent copies of the Sobol' sequence are used to construct confidence intervals for power. The default value is 8.
+#' @param sobol an integer \eqn{s} between 0 and 4 (inclusive). When approximating the power curve using `targetPower`, \eqn{\texttt{copies} \times 2^{s + 7}} simulation repetitions are used. When estimating power for given a samples size `n`, \eqn{\texttt{copies} \times 2^{s + 13}} simulation repetitions are used. The default setting is \eqn{s = 0}, which ensures that each function call should take less than two seconds. As \eqn{s} increases, the sample size calculation is less sensitive to simulation variability but takes longer to complete. However, function calls should still take less than 30 seconds when \eqn{s = 4}.
 #'
 #' @examples
 #' # specify targetPower to obtain sample size n
 #' DesignOneSample(mu = -4, sigma = 15, deltaL = -19.2, deltaU = 19.2,
-#' targetPower = 0.8, alpha = 0.05, plot = TRUE, seed = 1, sobol = 0)
+#' targetPower = 0.8, alpha = 0.05, plot = TRUE, seed = 1)
 #'
 #' # specify n to estimate power for this design
 #' DesignOneSample(mu = -4, sigma = 15, deltaL = -19.2, deltaU = 19.2,
-#' n = 17, alpha = 0.05, plot = FALSE, seed = 1, sobol = 0)
+#' n = 17, alpha = 0.05, plot = FALSE, seed = 1)
 #'
 #' @return The sample size or power estimate are returned as a list with supplementary information.
 #' If `targetPower` is specified to find sample size `n`, a plot of the approximated power curve will also appear in the plot pane if `plot = TRUE`. To find a sample size that corresponds to a different `targetPower`, save this function's output to an object and use the `UpdateTargetPower()` function.
 #' @export
 DesignOneSample <- function(mu = NULL, sigma = NULL, deltaL = -Inf,
                                   deltaU = Inf, alpha = NULL, targetPower = NULL,
-                                  n = NULL, plot = TRUE, seed = NULL, sobol = 0){
+                                  n = NULL, plot = TRUE, seed = NULL, copies = 8, sobol = 0){
 
   cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
@@ -88,6 +89,12 @@ DesignOneSample <- function(mu = NULL, sigma = NULL, deltaL = -Inf,
     stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
   else if (!(sobol %in% c(0,1,2,3,4))){
     stop("Please specify a valid integer between 0 and 4 to initialize the Sobol' sequence.")}
+  if(!is.numeric(copies) | length(copies) != 1) {
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
+  else if (copies < 0){
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
+  else if (!(copies %in% seq(4, 10, 1))){
+    stop("Please specify a valid integer between 4 and 10 to initialize the number of copies.")}
 
   if (length(plot) != 1 | !(plot %in% c(TRUE, FALSE))){
     stop("Please provide valid logical input for plot.")
@@ -190,7 +197,11 @@ DesignOneSample <- function(mu = NULL, sigma = NULL, deltaL = -Inf,
     if (is.null(seed)){
       seed <- ceiling(1000*stats::runif(1))
     }
-    sob <- qrng::sobol(2^(sobol + 10), d = 2, randomize = "digital.shift", seed = seed)
+    sob <- NULL
+    for (i in 1:copies){
+      sob <- rbind(sob,
+                   qrng::sobol(2^(sobol + 7), d = 2, randomize = "digital.shift", seed = seed + i - 1))
+    }
 
     ## find starting point for root-finding algorithm using normal approximations
     if (!is.finite(deltaU)){
@@ -403,6 +414,12 @@ DesignOneSample <- function(mu = NULL, sigma = NULL, deltaL = -Inf,
 
     pwrs <- thres - sdv
 
+    pwr_copies <- NULL
+    pwr_list <- split(pwrs, rep(1:copies, each = length(pwrs)/copies))
+    for (i in 1:copies){
+      pwr_copies[i] <- mean(pwr_list[[i]] > 0)
+    }
+
     df_samps <- data.frame(n_plot = samps)
 
     n_plot <- NULL
@@ -440,11 +457,14 @@ DesignOneSample <- function(mu = NULL, sigma = NULL, deltaL = -Inf,
                      b = "Nonsuperiority test power calculation",
                      c = "Noninferiority test power calculation")
 
+    CI <- rbind(mean(pwrs >= 0) + c(-1,1)*stats::qnorm(0.975)*stats::sd(pwr_copies)/sqrt(length(pwr_copies)))
+
     results <- structure(list(n = n_temp, mu = mu, sigma = sigma,
                               sig.level = alpha, power = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                               upper.bound = ceiling(upper_c*upper_val),
                               method = METHOD,
-                              samps = samps, seed = seed, sobol = sobol, design = "OneSample"), class = "power.en.test")
+                              samps = samps, seed = seed, copies = copies,
+                              sobol = sobol, design = "OneSample", CI = CI), class = "power.en.test")
     return(results)
   }
 
@@ -452,7 +472,11 @@ DesignOneSample <- function(mu = NULL, sigma = NULL, deltaL = -Inf,
     if (is.null(seed)){
       seed <- ceiling(1000*stats::runif(1))
     }
-    sob <- qrng::sobol(2^(sobol+16), d = 2, randomize = "digital.shift", seed = seed)
+    sob <- NULL
+    for (i in 1:copies){
+      sob <- rbind(sob,
+                   qrng::sobol(2^(sobol + 13), d = 2, randomize = "digital.shift", seed = seed + i - 1))
+    }
 
     ## generate two sds and one mean
     x <- stats::qchisq(sob[,1], n  - 1)
@@ -476,7 +500,15 @@ DesignOneSample <- function(mu = NULL, sigma = NULL, deltaL = -Inf,
 
     thres <- pmin(thresUp, thresLow)
 
-    pwrs <- mean(ifelse(sdv <= thres,1,0))
+    pwrs <- thres - sdv
+
+    pwr_copies <- NULL
+    pwr_list <- split(pwrs, rep(1:copies, each = length(pwrs)/copies))
+    for (i in 1:copies){
+      pwr_copies[i] <- mean(pwr_list[[i]] > 0)
+    }
+
+    CI <- rbind(mean(pwrs >= 0) + c(-1,1)*stats::qnorm(0.975)*stats::sd(pwr_copies)/sqrt(length(pwr_copies)))
 
     type <- ifelse(is.finite(deltaL) & is.finite(deltaU), "a",
                    ifelse(!is.finite(deltaL), "b", "c"))
@@ -489,14 +521,14 @@ DesignOneSample <- function(mu = NULL, sigma = NULL, deltaL = -Inf,
 
     if(mu >= deltaU | mu <= deltaL){
       results <- structure(list(n = n, mu = mu, sigma = sigma,
-                                sig.level = alpha, type.I.error = pwrs, bounds = c(deltaL, deltaU),
+                                sig.level = alpha, type.I.error = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
                                 note = NOTE,
-                                method = METHOD), class = "power.en.test")
+                                method = METHOD, CI = CI), class = "power.en.test")
     }
     else{
       results <- structure(list(n = n, mu = mu, sigma = sigma,
-                                sig.level = alpha, power = pwrs, bounds = c(deltaL, deltaU),
-                                method = METHOD), class = "power.en.test")
+                                sig.level = alpha, power = mean(pwrs >= 0), bounds = c(deltaL, deltaU),
+                                method = METHOD, CI = CI), class = "power.en.test")
     }
 
     return(results)
